@@ -1,14 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Response } from "express";
 import { Prisma } from "@prisma/client";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as crypto from "crypto";
 
 @Injectable()
 export class SurveyService {
   private readonly logger = new Logger(SurveyService.name);
-  private readonly anthropic: Anthropic | null;
+  private readonly openai: OpenAI | null;
 
   // In-memory job store for Phase 1 MVP (replace with Redis/DB in production)
   private jobStore = new Map<
@@ -17,8 +17,8 @@ export class SurveyService {
   >();
 
   constructor(private readonly prisma: PrismaService) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    this.anthropic = apiKey ? new Anthropic({ apiKey }) : null;
+    const apiKey = process.env.OPENAI_API_KEY;
+    this.openai = apiKey ? new OpenAI({ apiKey }) : null;
   }
 
   async saveDraft(
@@ -485,14 +485,14 @@ export class SurveyService {
   // ─── Resume PDF Analysis via Claude API ────────────────────────────
 
   /**
-   * Fetch the user's latest uploaded resume and analyze via Claude API.
+   * Fetch the user's latest uploaded resume and analyze via OpenAI gpt-4o-mini.
    * Returns extracted skill domains or null if no resume/no API key.
    */
   private async _analyzeResume(
     userId: string,
     teamId: string
   ): Promise<Record<string, unknown> | null> {
-    if (!this.anthropic) return null;
+    if (!this.openai) return null;
 
     // Find the user's latest resume upload for this team
     const upload = await this.prisma.upload.findFirst({
@@ -514,22 +514,23 @@ export class SurveyService {
     const base64 = fileBuffer.toString("base64");
 
     try {
-      const response = await this.anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o-mini",
         max_tokens: 1024,
+        response_format: { type: "json_object" },
         messages: [
           {
             role: "user",
             content: [
               {
-                type: "document",
-                source: { type: "base64", media_type: "application/pdf", data: base64 },
+                type: "file",
+                file: { file_data: `data:application/pdf;base64,${base64}` },
               },
               {
                 type: "text",
-                text: `<task>이력서를 분석하여 기술 역량을 JSON으로 추출하세요.</task>
-<output_format>
-정확히 이 JSON 형태로만 응답하세요 (다른 텍스트 없이):
+                text: `이력서를 분석하여 기술 역량을 JSON으로 추출하세요.
+
+정확히 이 JSON 형태로 응답:
 {
   "skills": ["기술1", "기술2", ...],
   "domains": {
@@ -543,27 +544,25 @@ export class SurveyService {
   "yearsExperience": number,
   "highlights": ["주요 경력/프로젝트 1줄 요약", ...]
 }
-</output_format>
-<rules>
+
+규칙:
 - 각 도메인 점수는 이력서에 나타난 기술의 깊이와 양을 기반으로 0-5 스케일
 - 언급되지 않은 도메인은 0
 - skills 배열은 최대 15개
-- highlights는 최대 3개
-</rules>`,
+- highlights는 최대 3개`,
               },
             ],
           },
         ],
       });
 
-      const text = response.content[0].type === "text" ? response.content[0].text : "";
+      const text = response.choices[0]?.message?.content ?? "";
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return null;
 
-      const parsed = JSON.parse(jsonMatch[0]);
-      return parsed as Record<string, unknown>;
+      return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
     } catch (err) {
-      this.logger.warn("Claude resume analysis failed:", err);
+      this.logger.warn("OpenAI resume analysis failed:", err);
       return null;
     }
   }
