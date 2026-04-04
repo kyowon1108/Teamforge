@@ -7,10 +7,15 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateTeamDto } from "./dto/create-team.dto";
+import { RealtimeGateway } from "../../realtime/realtime.gateway";
+import * as crypto from "crypto";
 
 @Injectable()
 export class TeamsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   async create(userId: string, dto: CreateTeamDto) {
     // Check for duplicate team name by same leader
@@ -21,7 +26,7 @@ export class TeamsService {
       throw new ConflictException({ code: "TEAM_NAME_DUPLICATE" });
     }
 
-    const inviteCode = this._generateInviteCode();
+    const inviteCode = await this._generateInviteCode();
     const frontendUrl =
       process.env.FRONTEND_URL ?? "http://localhost:3000";
 
@@ -81,13 +86,23 @@ export class TeamsService {
 
     const assignedRole = role === "observer" ? "observer" : "member";
 
-    await this.prisma.teamMember.create({
+    const newMember = await this.prisma.teamMember.create({
       data: {
         teamId: team.id,
         userId,
         role: assignedRole,
         status: "active",
       },
+      include: { user: true },
+    });
+
+    // Emit real-time event so team create page updates live
+    this.realtime.emitToTeam(team.id, "member:joined", {
+      userId,
+      name: newMember.user.name,
+      role: assignedRole,
+      memberCount: team.members.length + 1,
+      expectedSize: team.expectedSize,
     });
 
     const frontendUrl =
@@ -338,7 +353,17 @@ export class TeamsService {
     return desired.some((d) => keywords.some((k) => d.includes(k)));
   }
 
-  private _generateInviteCode(): string {
-    return Math.random().toString().slice(2, 8);
+  private async _generateInviteCode(): Promise<string> {
+    const maxAttempts = 10;
+    for (let i = 0; i < maxAttempts; i++) {
+      const code = crypto.randomInt(100000, 999999).toString();
+      const existing = await this.prisma.team.findUnique({
+        where: { inviteCode: code },
+        select: { id: true },
+      });
+      if (!existing) return code;
+    }
+    // Fallback: 8-digit code for extreme collision cases
+    return crypto.randomInt(10000000, 99999999).toString();
   }
 }

@@ -146,7 +146,7 @@ export default function SurveyPage() {
       case 3: return <Section3ProjectExp {...props} />;
       case 4: return <Section4CollabStyle {...props} />;
       case 5: return <Section5Availability {...props} />;
-      case 6: return <Section6Portfolio {...props} />;
+      case 6: return <Section6Portfolio {...props} teamId={teamId ?? undefined} />;
       default: return null;
     }
   };

@@ -1,14 +1,41 @@
 "use client";
 
-import { FileText, Github, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { FileText, Github, AlertCircle, Check, Loader2 } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
 
 interface Props {
   answers: Record<string, unknown>;
   updateAnswers: (a: Record<string, unknown>) => void;
+  teamId?: string;
 }
 
-export default function Section6Portfolio({ answers, updateAnswers }: Props) {
+export default function Section6Portfolio({ answers, updateAnswers, teamId }: Props) {
   const githubUrl = (answers.githubUrl ?? "") as string;
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeUploaded, setResumeUploaded] = useState(!!answers.resumeUploaded);
+
+  const handleResumeUpload = async (file: File) => {
+    if (!teamId || file.type !== "application/pdf" || file.size > 5 * 1024 * 1024) return;
+
+    setResumeFile(file);
+    setResumeUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("teamId", teamId);
+
+      await apiClient.upload("/survey/upload/resume", formData);
+      setResumeUploaded(true);
+      updateAnswers({ resumeUploaded: true, resumeFileName: file.name });
+    } catch {
+      // Upload failed — non-critical
+    } finally {
+      setResumeUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -26,10 +53,30 @@ export default function Section6Portfolio({ answers, updateAnswers }: Props) {
         <p className="text-[14px] font-medium text-[var(--tf-fg-default)]">
           Q14. 이력서 PDF 업로드 <span className="text-[12px] text-[var(--tf-fg-subtle)]">(선택)</span>
         </p>
-        <div className="border-2 border-dashed border-[var(--tf-stroke-neutral)] rounded-r2 p-6 text-center space-y-2">
-          <FileText className="w-8 h-8 text-[var(--tf-fg-subtle)] mx-auto" />
+        <div
+          className={`border-2 border-dashed rounded-r2 p-6 text-center space-y-2 transition-colors ${
+            resumeUploaded
+              ? "border-[var(--tf-stroke-brand)] bg-[var(--tf-bg-info)]"
+              : "border-[var(--tf-stroke-neutral)]"
+          }`}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const f = e.dataTransfer.files[0];
+            if (f) handleResumeUpload(f);
+          }}
+        >
+          {resumeUploading ? (
+            <Loader2 className="w-8 h-8 text-[var(--tf-fg-brand)] animate-spin mx-auto" />
+          ) : resumeUploaded ? (
+            <Check className="w-8 h-8 text-[var(--tf-fg-positive)] mx-auto" />
+          ) : (
+            <FileText className="w-8 h-8 text-[var(--tf-fg-subtle)] mx-auto" />
+          )}
           <p className="text-[13px] text-[var(--tf-fg-muted)]">
-            PDF 파일을 드래그하거나 클릭해 업로드
+            {resumeUploaded
+              ? `${resumeFile?.name ?? answers.resumeFileName ?? "이력서"} 업로드 완료`
+              : "PDF 파일을 드래그하거나 클릭해 업로드"}
           </p>
           <p className="text-[11px] text-[var(--tf-fg-subtle)]">최대 5MB</p>
           <input
@@ -37,17 +84,19 @@ export default function Section6Portfolio({ answers, updateAnswers }: Props) {
             accept="application/pdf"
             className="hidden"
             id="resume-upload"
-            onChange={() => {
-              // Phase 1: Upload functionality stub
-              // Full implementation requires Supabase Storage + Claude API parsing
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleResumeUpload(f);
             }}
           />
-          <label
-            htmlFor="resume-upload"
-            className="inline-flex items-center h-9 px-4 rounded-r2 border border-[var(--tf-stroke-neutral)] text-[13px] text-[var(--tf-fg-muted)] cursor-pointer hover:bg-[var(--tf-bg-layer-alt)] transition-colors"
-          >
-            파일 선택
-          </label>
+          {!resumeUploaded && (
+            <label
+              htmlFor="resume-upload"
+              className="inline-flex items-center h-9 px-4 rounded-r2 border border-[var(--tf-stroke-neutral)] text-[13px] text-[var(--tf-fg-muted)] cursor-pointer hover:bg-[var(--tf-bg-layer-alt)] transition-colors"
+            >
+              파일 선택
+            </label>
+          )}
         </div>
         <div className="flex items-start gap-2 p-3 rounded-r2 bg-[var(--tf-bg-layer-alt)]">
           <AlertCircle className="w-4 h-4 text-[var(--tf-fg-subtle)] shrink-0 mt-0.5" />

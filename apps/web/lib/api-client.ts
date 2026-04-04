@@ -106,6 +106,24 @@ class ApiClient {
   delete<T>(path: string) {
     return this.request<T>(path, { method: "DELETE" });
   }
+
+  async upload<T>(path: string, formData: FormData): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
+
+    const res = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: formData,
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw { statusCode: res.status, ...err };
+    }
+    return res.json() as Promise<T>;
+  }
 }
 
 export const apiClient = new ApiClient();

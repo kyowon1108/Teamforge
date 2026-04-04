@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Copy, Check, Link2, Users, ArrowRight } from "lucide-react";
 import LogoutButton from "@/components/LogoutButton";
 import { apiClient } from "@/lib/api-client";
+import { useSocket } from "@/hooks/useSocket";
 import { toast } from "sonner";
 
 type TeamCreated = {
@@ -27,8 +28,25 @@ export default function TeamCreatePage() {
   const [created, setCreated] = useState<TeamCreated | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [liveMemberCount, setLiveMemberCount] = useState<number | null>(null);
+  const [recentJoins, setRecentJoins] = useState<{ name: string; role: string }[]>([]);
   const router = useRouter();
   const { data: session } = useSession();
+  const { socket } = useSocket(created?.team.id);
+
+  // Listen for real-time member joins
+  useEffect(() => {
+    if (!socket || !created) return;
+
+    const handler = (data: { name: string; role: string; memberCount: number }) => {
+      setLiveMemberCount(data.memberCount);
+      setRecentJoins((prev) => [...prev, { name: data.name, role: data.role }]);
+      toast.success(`${data.name}님이 합류했습니다!`);
+    };
+
+    socket.on("member:joined", handler);
+    return () => { socket.off("member:joined", handler); };
+  }, [socket, created]);
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -117,13 +135,24 @@ export default function TeamCreatePage() {
             )}
           </button>
 
-          {/* Member count */}
-          <div className="flex items-center justify-center gap-2 text-[13px] text-[var(--tf-fg-muted)]">
-            <Users className="w-4 h-4" />
-            <span>
-              {created.team.memberCount}/{created.team.expectedSize}명 합류
-            </span>
-            <span className="w-2 h-2 rounded-full bg-[var(--tf-fg-brand)] animate-pulse" />
+          {/* Member count (live) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-center gap-2 text-[13px] text-[var(--tf-fg-muted)]">
+              <Users className="w-4 h-4" />
+              <span>
+                {liveMemberCount ?? created.team.memberCount}/{created.team.expectedSize}명 합류
+              </span>
+              <span className="w-2 h-2 rounded-full bg-[var(--tf-fg-brand)] animate-pulse" />
+            </div>
+            {recentJoins.length > 0 && (
+              <div className="space-y-1">
+                {recentJoins.map((j, i) => (
+                  <div key={i} className="text-center text-[12px] text-[var(--tf-fg-positive)] animate-in fade-in slide-in-from-bottom-1">
+                    {j.name}님이 {j.role === "observer" ? "옵저버로" : "팀원으로"} 합류!
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* CTA */}

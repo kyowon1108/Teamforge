@@ -49,7 +49,7 @@ model Team {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name            String
   description     String?
-  inviteCode      String    @unique @map("invite_code") @db.VarChar(6)
+  inviteCode      String    @unique @map("invite_code") @db.VarChar(10)
   inviteExpiresAt DateTime? @map("invite_expires_at") @db.Timestamptz
   expectedSize    Int       @default(4) @map("expected_size")
   status          String    @default("active") // active | archived | deleted

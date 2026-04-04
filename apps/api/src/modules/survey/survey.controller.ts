@@ -5,11 +5,15 @@ import {
   Body,
   Param,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Request,
   HttpCode,
   HttpStatus,
   Res,
+  BadRequestException,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
 import { SurveyService } from "./survey.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -66,5 +70,26 @@ export class SurveyController {
       return null;
     }
     return this.surveyService.getResult(userId, teamId);
+  }
+
+  @Post("upload/resume")
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor("file", {
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype !== "application/pdf") {
+        cb(new BadRequestException("PDF 파일만 업로드 가능합니다"), false);
+      } else {
+        cb(null, true);
+      }
+    },
+  }))
+  async uploadResume(
+    @Request() req: AuthRequest,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: { teamId: string }
+  ) {
+    if (!file) throw new BadRequestException("파일이 필요합니다");
+    return this.surveyService.saveResume(req.user.userId, body.teamId, file);
   }
 }
