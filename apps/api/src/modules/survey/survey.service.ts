@@ -82,6 +82,19 @@ export class SurveyService {
     return { uploadId: upload.id, filename };
   }
 
+  async enrichGitHub(userId: string, teamId: string, githubUrl: string) {
+    const data = await this._enrichFromGitHub(githubUrl);
+    if (!data) return { status: "skipped", reason: "invalid_url_or_fetch_failed" };
+
+    // Save to assessment
+    await this.prisma.skillAssessment.updateMany({
+      where: { userId, teamId },
+      data: { githubData: data as Prisma.InputJsonValue, updatedAt: new Date() },
+    });
+
+    return { status: "enriched", data };
+  }
+
   async submit(
     userId: string,
     body: { teamId: string; answers: Record<string, unknown> }
@@ -532,7 +545,11 @@ export class SurveyService {
 
 정확히 이 JSON 형태로 응답:
 {
-  "skills": ["기술1", "기술2", ...],
+  "techFromResume": ["기술1", "기술2", ...],
+  "projectsFromResume": [
+    { "name": "프로젝트명", "description": "설명", "techs": ["사용기술"] }
+  ],
+  "rolesFromResume": ["역할1", "역할2"],
   "domains": {
     "backend": 0-5,
     "frontend": 0-5,
@@ -541,15 +558,14 @@ export class SurveyService {
     "aiMl": 0-5,
     "design": 0-5
   },
-  "yearsExperience": number,
-  "highlights": ["주요 경력/프로젝트 1줄 요약", ...]
+  "yearsExperience": number
 }
 
 규칙:
-- 각 도메인 점수는 이력서에 나타난 기술의 깊이와 양을 기반으로 0-5 스케일
-- 언급되지 않은 도메인은 0
-- skills 배열은 최대 15개
-- highlights는 최대 3개`,
+- techFromResume: 이력서에 명시된 기술 스택 (최대 15개)
+- projectsFromResume: 주요 프로젝트 (최대 5개)
+- rolesFromResume: 담당했던 역할 (예: "백엔드 개발자", "PM")
+- domains: 각 도메인 점수 0-5, 언급되지 않은 도메인은 0`,
               },
             ],
           },
@@ -560,7 +576,18 @@ export class SurveyService {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return null;
 
-      return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      const raw = JSON.parse(jsonMatch[0]);
+
+      // Normalize to spec schema
+      return {
+        version: 1,
+        techFromResume: raw.techFromResume ?? raw.skills ?? [],
+        projectsFromResume: raw.projectsFromResume ?? [],
+        rolesFromResume: raw.rolesFromResume ?? [],
+        domains: raw.domains ?? {},
+        yearsExperience: raw.yearsExperience ?? 0,
+        parsedAt: new Date().toISOString(),
+      };
     } catch (err) {
       this.logger.warn("OpenAI resume analysis failed:", err);
       return null;
@@ -667,7 +694,10 @@ export class SurveyService {
 
   /**
    * Blend resume and GitHub signals into the cross-validated skill vector.
-   * Weight: survey 70%, resume 20%, GitHub 10%
+   * Includes cross-validation: large divergence between survey and external
+   * signals triggers dampening to prevent inflated scores.
+   *
+   * Weight: survey 60-80%, resume 20-30%, GitHub 10-20%
    */
   private _mergeEnrichmentIntoVector(
     vector: Record<string, number>,
@@ -687,14 +717,38 @@ export class SurveyService {
 
       if (resume === 0 && github === 0) continue;
 
-      // Weighted blend: survey gets at least 70% weight
+      // Cross-validation: detect large divergence
+      // If survey says 4+ but resume/GitHub say 0-1, the self-rating may be inflated
+      const externalAvg = resume > 0 && github > 0
+        ? (resume + github) / 2
+        : resume > 0 ? resume : github;
+      const divergence = survey - externalAvg;
+
+      let surveyWeight: number;
+      let externalWeight: number;
+
+      if (divergence > 2) {
+        // Survey much higher than external evidence → trust external more
+        surveyWeight = 0.5;
+        externalWeight = 0.5;
+      } else if (divergence < -2) {
+        // External much higher than survey (user is humble) → boost
+        surveyWeight = 0.6;
+        externalWeight = 0.4;
+      } else {
+        // Normal range — standard weighting
+        surveyWeight = resume > 0 && github > 0 ? 0.6 : resume > 0 ? 0.7 : 0.8;
+        externalWeight = 1 - surveyWeight;
+      }
+
+      // Split external weight between resume and github
       let blended: number;
       if (resume > 0 && github > 0) {
-        blended = survey * 0.6 + resume * 0.25 + github * 0.15;
+        blended = survey * surveyWeight + resume * externalWeight * 0.6 + github * externalWeight * 0.4;
       } else if (resume > 0) {
-        blended = survey * 0.7 + resume * 0.3;
+        blended = survey * surveyWeight + resume * externalWeight;
       } else {
-        blended = survey * 0.8 + github * 0.2;
+        blended = survey * surveyWeight + github * externalWeight;
       }
 
       result[d] = Math.min(5, Math.round(blended * 100) / 100);

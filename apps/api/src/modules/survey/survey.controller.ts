@@ -72,6 +72,16 @@ export class SurveyController {
     return this.surveyService.getResult(userId, teamId);
   }
 
+  @Post("github-enrich")
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async enrichGitHub(
+    @Request() req: AuthRequest,
+    @Body() body: { teamId: string; githubUrl: string }
+  ) {
+    return this.surveyService.enrichGitHub(req.user.userId, body.teamId, body.githubUrl);
+  }
+
   @Post("upload/resume")
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor("file", {
@@ -90,6 +100,13 @@ export class SurveyController {
     @Body() body: { teamId: string }
   ) {
     if (!file) throw new BadRequestException("파일이 필요합니다");
+
+    // Magic bytes validation: PDF starts with %PDF (hex: 25 50 44 46)
+    const pdfMagic = Buffer.from([0x25, 0x50, 0x44, 0x46]); // %PDF
+    if (!file.buffer.subarray(0, 4).equals(pdfMagic)) {
+      throw new BadRequestException("유효한 PDF 파일이 아닙니다");
+    }
+
     return this.surveyService.saveResume(req.user.userId, body.teamId, file);
   }
 }

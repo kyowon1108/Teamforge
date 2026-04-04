@@ -70,11 +70,13 @@ class ApiClient {
 
   private async _tryRefresh(): Promise<boolean> {
     try {
+      // Refresh token is in HttpOnly cookie (auto-sent with credentials: "include")
+      // Also send body as fallback for backward compat
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: this.refreshToken }),
+        body: JSON.stringify(this.refreshToken ? { refreshToken: this.refreshToken } : {}),
       });
       if (!res.ok) return false;
       const data = await res.json() as { accessToken: string };

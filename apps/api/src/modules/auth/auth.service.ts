@@ -155,7 +155,11 @@ export class AuthService {
         teamRole: membership?.role ?? null,
       };
 
-      return { accessToken: this.jwt.sign(newPayload, { expiresIn: "15m" }) };
+      // Rotate refresh token on each use
+      return {
+        accessToken: this.jwt.sign(newPayload, { expiresIn: "15m" }),
+        refreshToken: this._generateRefreshToken(user.id),
+      };
     } catch {
       throw new UnauthorizedException({ code: "REFRESH_TOKEN_EXPIRED" });
     }
