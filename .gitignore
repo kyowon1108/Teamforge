@@ -25,6 +25,10 @@ Thumbs.db
 .idea
 .vscode
 
+# Plugins / tooling state
+.omx/
+.claude/settings.json
+
 # Prisma
 apps/api/prisma/migrations
 apps/api/generated
