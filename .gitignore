@@ -30,7 +30,6 @@ Thumbs.db
 .claude/settings.json
 
 # Prisma
-apps/api/prisma/migrations
 apps/api/generated
 
 # Uploads / tmp

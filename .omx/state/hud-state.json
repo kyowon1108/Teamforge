@@ -1,5 +1,0 @@
-{
-  "last_turn_at": "2026-04-04T10:09:14.066Z",
-  "turn_count": 12,
-  "last_agent_output": "**전제**\n요청한 `packages/database/prisma/schema.prisma`는 이 워크스페이스에 없었습니다. 실제 Prisma schema는 [schema.pris"
-}
