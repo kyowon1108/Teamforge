@@ -8,6 +8,7 @@ import { Github, Mail, MessageCircle, Users, Zap, Shield } from "lucide-react";
 function LoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const error = searchParams.get("error");
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--tf-bg-layer-alt)] px-4">
@@ -21,6 +22,13 @@ function LoginContent() {
             팀 프로젝트의 전체 생명주기를 한 곳에서
           </p>
         </div>
+
+        {/* Error messages */}
+        {error === "api_unavailable" && (
+          <div className="p-3 rounded-r2 bg-[var(--tf-bg-warning)] text-[13px] text-[var(--tf-fg-warning)] text-center">
+            서버에 연결할 수 없어요. 잠시 후 다시 시도해주세요.
+          </div>
+        )}
 
         {/* Login Card */}
         <div className="bg-[var(--tf-bg-layer-default)] rounded-r3 border border-[var(--tf-stroke-neutral)] p-6 space-y-4 shadow-sm">
@@ -49,16 +57,12 @@ function LoginContent() {
             GitHub로 로그인
           </button>
 
-          {/* Kakao — disabled (FEATURE_FLAGS.kakaoLogin = false) */}
           <button
-            disabled
-            className="w-full flex items-center justify-center gap-3 h-12 rounded-r2 bg-[#FEE500] text-[14px] font-medium text-[#191919] opacity-50 cursor-not-allowed relative"
+            onClick={() => signIn("kakao", { callbackUrl })}
+            className="w-full flex items-center justify-center gap-3 h-12 rounded-r2 bg-[#FEE500] text-[14px] font-medium text-[#191919] hover:bg-[#F5DA00] transition-colors cursor-pointer"
           >
             <MessageCircle className="w-5 h-5" />
             카카오로 로그인
-            <span className="absolute right-3 text-[12px] bg-[var(--tf-bg-layer-alt)] text-[var(--tf-fg-muted)] px-2 py-0.5 rounded-r1">
-              준비 중
-            </span>
           </button>
         </div>
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Github, AlertCircle, Check, Loader2 } from "lucide-react";
+import { FileText, Github, AlertCircle, Check, Loader2, XCircle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
 
 interface Props {
   answers: Record<string, unknown>;
@@ -15,9 +16,26 @@ export default function Section6Portfolio({ answers, updateAnswers, teamId }: Pr
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeUploading, setResumeUploading] = useState(false);
   const [resumeUploaded, setResumeUploaded] = useState(!!answers.resumeUploaded);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleResumeUpload = async (file: File) => {
-    if (!teamId || file.type !== "application/pdf" || file.size > 5 * 1024 * 1024) return;
+    setUploadError(null);
+
+    if (file.type !== "application/pdf") {
+      setUploadError("PDF 파일만 업로드할 수 있어요.");
+      toast.error("PDF 파일만 업로드할 수 있어요.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("파일 크기가 5MB를 초과했어요.");
+      toast.error("파일 크기가 5MB를 초과했어요.");
+      return;
+    }
+    if (!teamId) {
+      setUploadError("팀 정보를 찾을 수 없어요.");
+      toast.error("팀 정보를 찾을 수 없어요.");
+      return;
+    }
 
     setResumeFile(file);
     setResumeUploading(true);
@@ -30,8 +48,12 @@ export default function Section6Portfolio({ answers, updateAnswers, teamId }: Pr
       await apiClient.upload("/survey/upload/resume", formData);
       setResumeUploaded(true);
       updateAnswers({ resumeUploaded: true, resumeFileName: file.name });
-    } catch {
-      // Upload failed — non-critical
+      toast.success("이력서가 업로드되었어요.");
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      const msg = e?.message ?? "업로드에 실패했어요. 다시 시도해주세요.";
+      setUploadError(msg);
+      toast.error(msg);
     } finally {
       setResumeUploading(false);
     }
@@ -98,6 +120,12 @@ export default function Section6Portfolio({ answers, updateAnswers, teamId }: Pr
             </label>
           )}
         </div>
+        {uploadError && (
+          <div className="flex items-start gap-2 p-3 rounded-r2 bg-[var(--tf-bg-warning)]">
+            <XCircle className="w-4 h-4 text-[var(--tf-fg-warning)] shrink-0 mt-0.5" />
+            <p className="text-[12px] text-[var(--tf-fg-warning)]">{uploadError}</p>
+          </div>
+        )}
         <div className="flex items-start gap-2 p-3 rounded-r2 bg-[var(--tf-bg-layer-alt)]">
           <AlertCircle className="w-4 h-4 text-[var(--tf-fg-subtle)] shrink-0 mt-0.5" />
           <p className="text-[11px] text-[var(--tf-fg-subtle)]">

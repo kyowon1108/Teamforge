@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
+import Kakao from "next-auth/providers/kakao";
 
 declare module "next-auth" {
   interface Session {
@@ -29,9 +30,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
     }),
+    ...(process.env.KAKAO_CLIENT_ID
+      ? [
+          Kakao({
+            clientId: process.env.KAKAO_CLIENT_ID,
+            clientSecret: process.env.KAKAO_CLIENT_SECRET!,
+          }),
+        ]
+      : []),
   ],
   callbacks: {
     async signIn({ user, account }) {
+      // Kakao may not provide email without biz app approval — derive one from the account ID
+      if (!user.email && account?.provider === "kakao" && account.providerAccountId) {
+        user.email = `kakao_${account.providerAccountId}@kakao.teamforge.dev`;
+      }
       if (!user.email) return false;
 
       try {

@@ -3,16 +3,9 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Crown, User, Eye, Check, ArrowRight, Loader2 } from "lucide-react";
+import { Crown, User, Eye, Check, Loader2 } from "lucide-react";
 import LogoutButton from "@/components/LogoutButton";
 import { apiClient } from "@/lib/api-client";
-
-type ExistingState = {
-  teamId: string;
-  teamName: string | null;
-  teamRole: string | null;
-  surveyCompleted: boolean;
-};
 
 const roles = [
   {
@@ -59,7 +52,6 @@ const roles = [
 export default function RoleSelectPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [existing, setExisting] = useState<ExistingState | null>(null);
   const [checking, setChecking] = useState(true);
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -76,37 +68,14 @@ export default function RoleSelectPage() {
 
     const check = async () => {
       try {
-        const storedTeamId = localStorage.getItem("teamforge_team_id");
-
-        const me = await apiClient.get<{
-          id: string;
-          teamId: string | null;
-          teamRole: string | null;
-          teamName: string | null;
-        }>("/auth/me");
-
-        if (me?.teamId) {
-          let surveyCompleted = false;
-          try {
-            const result = await apiClient.get<unknown>(
-              `/survey/result/${me.id}/${me.teamId}`
-            );
-            surveyCompleted = !!result;
-          } catch {
-            // Not completed
-          }
-
-          setExisting({
-            teamId: me.teamId,
-            teamName: me.teamName,
-            teamRole: me.teamRole,
-            surveyCompleted,
-          });
-        } else if (storedTeamId) {
-          localStorage.removeItem("teamforge_team_id");
+        // 팀이 있으면 대시보드로 바로 이동 (선형 위저드 탈피)
+        const teams = await apiClient.get<{ teamId: string }[]>("/teams");
+        if (Array.isArray(teams) && teams.length > 0) {
+          router.replace("/dashboard");
+          return;
         }
       } catch {
-        // API unavailable, skip check
+        // API 불가 시 역할 선택 화면 그대로 표시
       } finally {
         setChecking(false);
       }
@@ -128,20 +97,6 @@ export default function RoleSelectPage() {
     }
   };
 
-  const handleResume = () => {
-    if (!existing) return;
-
-    if (existing.teamRole === "leader" && existing.surveyCompleted) {
-      router.push(`/team/${existing.teamId}`);
-    } else if (existing.surveyCompleted) {
-      router.push("/result");
-    } else if (existing.teamRole === "observer") {
-      router.push(`/team/${existing.teamId}`);
-    } else {
-      router.push("/survey");
-    }
-  };
-
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--tf-bg-layer-alt)]">
@@ -154,45 +109,6 @@ export default function RoleSelectPage() {
     <div className="min-h-screen flex items-center justify-center bg-[var(--tf-bg-layer-alt)] px-4 py-10">
       <LogoutButton />
       <div className="w-full max-w-[720px] space-y-8">
-        {/* Resume banner */}
-        {existing && (
-          <div className="bg-[var(--tf-bg-layer-default)] rounded-r3 border border-[var(--tf-stroke-brand)] p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <p className="text-[14px] font-semibold text-[var(--tf-fg-default)]">
-                  진행 중인 팀이 있어요
-                </p>
-                <p className="text-[13px] text-[var(--tf-fg-muted)]">
-                  <span className="font-medium text-[var(--tf-fg-brand)]">
-                    {existing.teamName ?? "팀"}
-                  </span>
-                  {" · "}
-                  {existing.teamRole === "leader" && existing.surveyCompleted
-                    ? "설문 완료 — 팀 대시보드 확인 가능"
-                    : existing.teamRole === "observer"
-                    ? "옵저버로 참여 중"
-                    : existing.surveyCompleted
-                    ? "설문 완료 — 팀장 승인 대기 중"
-                    : "설문 진행 중"}
-                </p>
-              </div>
-              <button
-                onClick={handleResume}
-                className="shrink-0 h-10 px-5 rounded-r2 bg-[var(--tf-bg-brand-solid)] text-[var(--tf-fg-inverse)] text-[13px] font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
-              >
-                {existing.teamRole === "leader" && existing.surveyCompleted
-                  ? "팀 대시보드 보기"
-                  : existing.teamRole === "observer"
-                  ? "팀 현황 보기"
-                  : existing.surveyCompleted
-                  ? "결과 보기"
-                  : "설문 계속하기"}
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
-
         <div className="text-center space-y-2">
           <h1 className="text-[26px] md:text-[26px] font-bold text-[var(--tf-fg-default)]">
             역할을 선택하세요

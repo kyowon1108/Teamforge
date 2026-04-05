@@ -8,8 +8,11 @@ export default auth((req: NextRequest & { auth: { user?: { teamId?: string | nul
   const path = nextUrl.pathname;
 
   const isLoggedIn = !!session;
-  // Only consider fully authenticated if we have the teamforge API token
-  const hasApiToken = !!(session as { teamforgeToken?: string } | null)?.teamforgeToken;
+  // Accept token from either location (top-level preferred, user sub-claim as fallback)
+  const hasApiToken = !!(
+    (session as { teamforgeToken?: string } | null)?.teamforgeToken ??
+    (session as { user?: { teamforgeToken?: string } } | null)?.user?.teamforgeToken
+  );
 
   // Public paths that don't need auth
   const isPublicPath = path === "/login" || path.startsWith("/team/join/");
@@ -18,14 +21,23 @@ export default auth((req: NextRequest & { auth: { user?: { teamId?: string | nul
   if (isApiPath) return NextResponse.next();
 
   // Already logged in with API token → redirect away from login
+  // Honour callbackUrl so invite-link flows (/team/join/[code]) are not lost
   if (isLoggedIn && hasApiToken && path === "/login") {
-    return NextResponse.redirect(new URL("/", nextUrl));
+    const rawCallback = nextUrl.searchParams.get("callbackUrl");
+    const safeCallback =
+      rawCallback && rawCallback.startsWith("/") && !rawCallback.startsWith("//")
+        ? rawCallback
+        : "/dashboard";
+    return NextResponse.redirect(new URL(safeCallback, nextUrl));
   }
 
   // Not logged in → redirect to login (except public paths)
   if (!isLoggedIn && !isPublicPath) {
     const loginUrl = new URL("/login", nextUrl);
-    loginUrl.searchParams.set("callbackUrl", path);
+    // Only allow same-origin relative paths as callbackUrl (prevent open redirect)
+    if (path.startsWith("/") && !path.startsWith("//")) {
+      loginUrl.searchParams.set("callbackUrl", path);
+    }
     return NextResponse.redirect(loginUrl);
   }
 

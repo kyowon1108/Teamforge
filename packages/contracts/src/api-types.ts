@@ -29,6 +29,8 @@ export interface TeamMember {
   surveyCompleted: boolean;
 }
 
+export type ProfileConfidenceLevel = "high" | "medium" | "low";
+
 export interface PersonalResult {
   userId: string;
   skillVector: {
@@ -41,8 +43,14 @@ export interface PersonalResult {
   };
   experienceScore: number;
   reliabilityScore: number;
+  profileConfidence: ProfileConfidenceLevel;
   recommendedRoles: string[];
   positionPrediction: string;
+  explanations?: {
+    roleReason?: string;
+    strengths?: string;
+    improvements?: string;
+  };
 }
 
 // Pagination
@@ -50,6 +58,48 @@ export interface PaginatedResponse<T> {
   items: T[];
   nextCursor: string | null;
   total: number;
+}
+
+// Meeting hub types
+export interface MeetingSummary {
+  id: string;
+  title: string | null;
+  summary: string | null;
+  analysisStatus: "pending" | "analyzing" | "done" | "failed";
+  actionItemsCount: number;
+  actionItemsDone: number;
+  meetingDate: string;
+  createdAt: string;
+}
+
+export interface MeetingDetail {
+  id: string;
+  teamId: string;
+  title: string | null;
+  rawContent: string | null; // null for observer
+  summary: string | null;
+  analysisStatus: "pending" | "analyzing" | "done" | "failed";
+  nextAgenda: string[] | null;
+  meetingDate: string;
+  createdBy: string;
+  actionItems: ActionItemResponse[];
+}
+
+export interface ActionItemResponse {
+  id: string;
+  description: string;
+  assigneeName: string | null;
+  assigneeId: string | null;
+  dueDate: string | null;
+  status: "open" | "done";
+  completedAt: string | null;
+}
+
+export interface CreateMeetingRequest {
+  teamId: string;
+  title?: string;
+  rawContent: string;
+  meetingDate?: string;
 }
 
 // Error codes

@@ -29,40 +29,57 @@ export default function SurveyPage() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [teamIdLoading, setTeamIdLoading] = useState(true);
+  const [teamRole, setTeamRole] = useState<string | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  // Resolve teamId: session JWT may be stale, so check localStorage then API
+  // Resolve teamId + teamRole; redirect observers immediately
+  // NOTE: JWT teamRole is set at login time — after joining a team it may be stale.
+  // Always verify via /auth/me when teamRole is null to catch fresh-join observer case.
   useEffect(() => {
-    // Wait for session to load
-    if (status === "loading") return;
+    if (status !== "authenticated") return;
+
+    const token = session?.teamforgeToken ?? session?.user?.teamforgeToken;
+    if (token) apiClient.setToken(token);
 
     const sessionTeamId = session?.user?.teamId;
+    const sessionRole = session?.user?.teamRole;
     const storedTeamId = typeof window !== "undefined"
       ? localStorage.getItem("teamforge_team_id")
       : null;
 
-    if (sessionTeamId) {
-      setTeamId(sessionTeamId);
-    } else if (storedTeamId) {
-      setTeamId(storedTeamId);
-    } else if (status === "authenticated") {
-      // Ensure token is set before API call
-      const token = session?.teamforgeToken ?? session?.user?.teamforgeToken;
-      if (token) apiClient.setToken(token);
+    const applyRoleAndTeam = (tid: string | null, role: string | null) => {
+      if (tid) setTeamId(tid);
+      if (role === "observer" && tid) {
+        router.replace(`/team/${tid}`);
+        return;
+      }
+      if (role) setTeamRole(role);
+      setTeamIdLoading(false);
+    };
 
-      apiClient
-        .get<{ teamId: string | null }>("/auth/me")
-        .then((me) => {
-          if (me?.teamId) {
-            setTeamId(me.teamId);
-            localStorage.setItem("teamforge_team_id", me.teamId);
-          }
-        })
-        .catch(() => {});
+    // If role is already known from a fresh session, use it directly
+    if (sessionTeamId && sessionRole) {
+      applyRoleAndTeam(sessionTeamId, sessionRole);
+      return;
     }
-  }, [status, session?.user?.teamId, session?.teamforgeToken, session?.user?.teamforgeToken]);
+
+    // Otherwise fetch from API to handle stale JWT (e.g. just joined as observer)
+    apiClient
+      .get<{ teamId: string | null; teamRole: string | null }>("/auth/me")
+      .then((me) => {
+        const tid = sessionTeamId ?? storedTeamId ?? me?.teamId ?? null;
+        if (me?.teamId) localStorage.setItem("teamforge_team_id", me.teamId);
+        applyRoleAndTeam(tid, me?.teamRole ?? sessionRole ?? null);
+      })
+      .catch(() => {
+        // API unavailable — fall back to session/localStorage values
+        const tid = sessionTeamId ?? storedTeamId ?? null;
+        applyRoleAndTeam(tid, sessionRole ?? null);
+      });
+  }, [status, session?.user?.teamId, session?.user?.teamRole, session?.teamforgeToken, session?.user?.teamforgeToken, router]);
 
   const updateAnswers = useCallback(
     (sectionAnswers: Record<string, unknown>) => {
@@ -128,13 +145,47 @@ export default function SurveyPage() {
       };
       evtSource.onerror = () => {
         evtSource.close();
-        setTimeout(() => router.push("/result"), 3000);
+        toast.error("실시간 상태 확인에 실패했어요. 결과 페이지에서 확인해주세요.");
+        setSubmitting(false);
+        // Don't auto-redirect — let user manually navigate or retry
       };
     } catch {
       toast.error("제출에 실패했어요. 다시 시도해주세요.");
       setSubmitting(false);
     }
   };
+
+  // Guard: if teamId couldn't be resolved after auth, block survey
+  const noTeam = status === "authenticated" && !teamId && !teamIdLoading;
+
+  // Per-section required field validation
+  const isSectionValid = (section: number): boolean => {
+    switch (section) {
+      case 1:
+        return answers.experienceTier != null && answers.backgroundType != null;
+      case 2:
+        return (
+          Array.isArray(answers.techStackList) && (answers.techStackList as string[]).length >= 1 &&
+          Array.isArray(answers.topStrengths) && (answers.topStrengths as string[]).length >= 1
+        );
+      case 3:
+        return answers.projectCount != null && answers.gitCollabLevel != null;
+      case 4:
+        return (
+          answers.workArchetype != null &&
+          Array.isArray(answers.desiredRoles) && (answers.desiredRoles as string[]).length >= 1
+        );
+      case 5:
+        return answers.weeklyHours != null;
+      case 6:
+        return true; // all optional
+      default:
+        return true;
+    }
+  };
+
+  const currentValid = isSectionValid(currentSection);
+  const allSectionsValid = [1, 2, 3, 4, 5, 6].every(isSectionValid);
 
   const progress = (currentSection / 6) * 100;
 
@@ -150,6 +201,24 @@ export default function SurveyPage() {
       default: return null;
     }
   };
+
+  if (noTeam) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--tf-bg-layer-alt)] px-4">
+        <LogoutButton />
+        <div className="max-w-[400px] text-center space-y-4">
+          <p className="text-[16px] font-semibold text-[var(--tf-fg-default)]">팀 정보를 찾을 수 없어요</p>
+          <p className="text-[13px] text-[var(--tf-fg-muted)]">설문을 진행하려면 먼저 팀을 생성하거나 합류해주세요.</p>
+          <button
+            onClick={() => router.push("/onboarding/role")}
+            className="h-10 px-6 rounded-r2 bg-[var(--tf-bg-brand-solid)] text-[var(--tf-fg-inverse)] text-[14px] font-medium hover:opacity-90 transition-opacity"
+          >
+            팀 설정하러 가기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--tf-bg-layer-alt)]">
@@ -208,15 +277,28 @@ export default function SurveyPage() {
           {currentSection < 6 ? (
             <button
               onClick={goNext}
-              className="flex items-center gap-1 h-10 px-6 rounded-r2 bg-[var(--tf-bg-brand-solid)] text-[var(--tf-fg-inverse)] text-[14px] font-medium hover:opacity-90 transition-opacity"
+              disabled={!currentValid}
+              className={`
+                flex items-center gap-1 h-10 px-6 rounded-r2 text-[14px] font-medium transition-all
+                ${currentValid
+                  ? "bg-[var(--tf-bg-brand-solid)] text-[var(--tf-fg-inverse)] hover:opacity-90"
+                  : "bg-[var(--tf-stroke-neutral)] text-[var(--tf-fg-disabled)] cursor-not-allowed"
+                }
+              `}
             >
               다음 <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={submitting}
-              className="flex items-center gap-2 h-10 px-6 rounded-r2 bg-[var(--tf-bg-brand-solid)] text-[var(--tf-fg-inverse)] text-[14px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              disabled={submitting || !allSectionsValid}
+              className={`
+                flex items-center gap-2 h-10 px-6 rounded-r2 text-[14px] font-medium transition-all
+                ${!submitting && allSectionsValid
+                  ? "bg-[var(--tf-bg-brand-solid)] text-[var(--tf-fg-inverse)] hover:opacity-90"
+                  : "bg-[var(--tf-stroke-neutral)] text-[var(--tf-fg-disabled)] cursor-not-allowed opacity-50"
+                }
+              `}
             >
               {submitting ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> 분석 중...</>

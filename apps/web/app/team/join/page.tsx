@@ -2,15 +2,18 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Users, ArrowRight } from "lucide-react";
+import { Users, ArrowRight, UserCheck, Eye } from "lucide-react";
 import LogoutButton from "@/components/LogoutButton";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
+
+type JoinRole = "member" | "observer";
 
 export default function TeamJoinPage() {
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [teamPreview, setTeamPreview] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<JoinRole>("member");
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
@@ -59,10 +62,9 @@ export default function TeamJoinPage() {
     if (code.length !== 6) return;
     setLoading(true);
     try {
-      const selectedRole = localStorage.getItem("teamforge_role") ?? "member";
       const joinRes = await apiClient.post<{ team: { id: string }; role: string }>("/teams/join", {
         inviteCode: code,
-        role: selectedRole === "observer" ? "observer" : "member",
+        role: selectedRole,
       });
       localStorage.setItem("teamforge_team_id", joinRes.team.id);
       toast.success("팀에 합류했습니다!");
@@ -124,6 +126,51 @@ export default function TeamJoinPage() {
             {teamPreview}
           </p>
         )}
+
+        {/* Role selection */}
+        <div className="space-y-2">
+          <p className="text-[12px] font-medium text-[var(--tf-fg-muted)]">참여 유형</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedRole("member")}
+              className="flex flex-col items-start gap-1.5 px-3 py-3 rounded-r2 border text-left transition-colors"
+              style={{
+                borderColor: selectedRole === "member" ? "var(--tf-stroke-brand)" : "var(--tf-stroke-neutral)",
+                background: selectedRole === "member" ? "var(--tf-bg-info)" : "var(--tf-bg-layer-default)",
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <UserCheck size={14} style={{ color: selectedRole === "member" ? "var(--tf-fg-brand)" : "var(--tf-fg-muted)" }} />
+                <span className="text-[13px] font-semibold" style={{ color: selectedRole === "member" ? "var(--tf-fg-brand)" : "var(--tf-fg-default)" }}>
+                  팀원
+                </span>
+              </div>
+              <span className="text-[11px]" style={{ color: "var(--tf-fg-muted)" }}>
+                설문 참여 · 역할 배정
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedRole("observer")}
+              className="flex flex-col items-start gap-1.5 px-3 py-3 rounded-r2 border text-left transition-colors"
+              style={{
+                borderColor: selectedRole === "observer" ? "var(--tf-stroke-brand)" : "var(--tf-stroke-neutral)",
+                background: selectedRole === "observer" ? "var(--tf-bg-info)" : "var(--tf-bg-layer-default)",
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <Eye size={14} style={{ color: selectedRole === "observer" ? "var(--tf-fg-brand)" : "var(--tf-fg-muted)" }} />
+                <span className="text-[13px] font-semibold" style={{ color: selectedRole === "observer" ? "var(--tf-fg-brand)" : "var(--tf-fg-default)" }}>
+                  옵저버
+                </span>
+              </div>
+              <span className="text-[11px]" style={{ color: "var(--tf-fg-muted)" }}>
+                교수 · 멘토 · 외부 참관
+              </span>
+            </button>
+          </div>
+        </div>
 
         <button
           onClick={handleJoin}
