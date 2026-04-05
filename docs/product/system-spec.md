@@ -1074,7 +1074,7 @@ CREATE INDEX idx_proposals_team ON change_proposals(team_id, status);
 | Database | PostgreSQL + pgvector | 관계형 + 벡터 |
 | Auth | NextAuth.js v5 | OAuth |
 | Realtime | Socket.io | NestJS Gateway |
-| AI | Claude API (Sonnet + Haiku) | 구조화 JSON |
+| AI | OpenAI API (gpt-4o-mini) | 구조화 JSON (response_format: json_object) |
 | STT | OpenAI Whisper API | 음성 → 텍스트 |
 | Embedding | OpenAI text-embedding-3-small | 1536 dim |
 | File storage | Supabase Storage | 이력서/음성 업로드 |
@@ -1129,7 +1129,6 @@ services:
     depends_on: [db]
     environment:
       DATABASE_URL: postgresql://teamforge:devpassword@db:5432/teamforge
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
     volumes: [./apps/api/src:/app/src]
   web:
@@ -1150,7 +1149,7 @@ volumes:
 | Frontend | Vercel (free) | $0 |
 | Backend + DB | Railway (hobby) | $5/mo |
 | Domain | .app or .dev | $12/yr |
-| AI APIs (5-10 teams) | Claude + OpenAI | $11-22/mo |
+| AI APIs (5-10 teams) | OpenAI (gpt-4o-mini + Whisper + Embedding) | $8-16/mo |
 | **Total** | | **$17-28/mo** |
 
 ---
@@ -1285,10 +1284,10 @@ teamforge/
 
 | Module | Unit | Integration | Mock (MSW) |
 |--------|------|-------------|------------|
-| survey/ | skill_vector, experience_score, reliability, 교차 검증 | POST /survey 전체 | GitHub API, Claude API |
-| ai/ | prompt 조립, JSON 파싱, RAG context | RAG search (pgvector) | Claude, OpenAI embedding |
+| survey/ | skill_vector, experience_score, reliability, 교차 검증 | POST /survey 전체 | GitHub API, OpenAI API |
+| ai/ | prompt 조립, JSON 파싱, RAG context | RAG search (pgvector) | OpenAI gpt-4o-mini, Embedding |
 | meetings/ | action item 추출, drift %, confidence | 저장→분석→action_items | Slack, Notion, Whisper |
-| changes/ | 3단계 분류, 투표 집계 | 제안→분석→투표→ADR | Claude API |
+| changes/ | 3단계 분류, 투표 집계 | 제안→분석→투표→ADR | OpenAI API |
 | github-webhook/ | payload 파싱, 시그니처 검증 | 수신→저장→집계 | — |
 | provisioning/ | — | 워크스페이스 생성 전체 | GitHub, Slack API |
 
