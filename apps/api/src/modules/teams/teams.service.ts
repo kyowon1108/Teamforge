@@ -8,6 +8,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateTeamDto } from "./dto/create-team.dto";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
+import { EventsService } from "../events/events.service";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -15,6 +16,7 @@ export class TeamsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly events: EventsService,
   ) {}
 
   async create(userId: string, dto: CreateTeamDto) {
@@ -46,6 +48,8 @@ export class TeamsService {
         },
       },
     });
+
+    this.events.track("team_created", { userId, teamId: team.id });
 
     return {
       team: {
@@ -80,11 +84,15 @@ export class TeamsService {
       throw new ConflictException({ code: "ALREADY_TEAM_MEMBER" });
     }
 
-    if (team.members.length >= team.expectedSize) {
-      throw new ForbiddenException({ code: "TEAM_FULL" });
-    }
-
     const assignedRole = role === "observer" ? "observer" : "member";
+
+    // Observers do not consume member slots (consistent with KF-004)
+    if (assignedRole !== "observer") {
+      const nonObserverCount = team.members.filter((m) => m.role !== "observer").length;
+      if (nonObserverCount >= team.expectedSize) {
+        throw new ForbiddenException({ code: "TEAM_FULL" });
+      }
+    }
 
     const newMember = await this.prisma.teamMember.create({
       data: {
@@ -107,6 +115,8 @@ export class TeamsService {
 
     const frontendUrl =
       process.env.FRONTEND_URL ?? "http://localhost:3000";
+
+    this.events.track("join_success", { userId, teamId: team.id, metadata: { role: assignedRole } });
 
     return {
       team: {
@@ -168,6 +178,46 @@ export class TeamsService {
     }));
   }
 
+  async listTeams(userId: string) {
+    const memberships = await this.prisma.teamMember.findMany({
+      where: { userId, status: "active" },
+      include: {
+        team: {
+          include: {
+            members: { where: { status: "active" }, select: { userId: true, role: true } },
+            kickoffSessions: {
+              select: { phase: true, topicDecided: true, summaryConfirmed: true },
+              take: 1,
+            },
+          },
+        },
+      },
+      orderBy: { joinedAt: "desc" },
+    });
+
+    return memberships
+      .filter((m) => m.team && !m.team.deletedAt)
+      .map((m) => {
+        const session = m.team.kickoffSessions[0] ?? null;
+        return {
+          teamId: m.team.id,
+          teamName: m.team.name,
+          teamDescription: m.team.description,
+          expectedSize: m.team.expectedSize,
+          memberCount: m.team.members.length,
+          role: m.role,
+          joinedAt: m.joinedAt.toISOString(),
+          kickoff: session
+            ? {
+                phase: session.phase,
+                topicDecided: session.topicDecided,
+                summaryConfirmed: session.summaryConfirmed,
+              }
+            : null,
+        };
+      });
+  }
+
   async getDashboard(teamId: string, viewerUserId: string) {
     const team = await this.prisma.team.findUnique({
       where: { id: teamId, deletedAt: null },
@@ -180,8 +230,8 @@ export class TeamsService {
 
     const viewerRole = viewerMember.role;
 
-    // Phase 1: leader-only dashboard — non-leaders get restricted response
-    if (viewerRole !== "leader") {
+    // Phase 1: members get restricted response; observers fall through to full dashboard
+    if (viewerRole === "member") {
       return {
         team: { id: team.id, name: team.name, description: team.description, expectedSize: team.expectedSize },
         viewerRole,

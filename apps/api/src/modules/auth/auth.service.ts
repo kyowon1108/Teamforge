@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../../prisma/prisma.service";
+import { EventsService } from "../events/events.service";
 import { SessionExchangeDto } from "./dto/session-exchange.dto";
 import * as crypto from "crypto";
 
@@ -8,7 +9,8 @@ import * as crypto from "crypto";
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly jwt: JwtService
+    private readonly jwt: JwtService,
+    private readonly events: EventsService,
   ) {}
 
   async sessionExchange(dto: SessionExchangeDto) {
@@ -77,6 +79,11 @@ export class AuthService {
 
     const accessToken = this.jwt.sign(payload, { expiresIn: "15m" });
     const refreshToken = this._generateRefreshToken(user.id);
+
+    this.events.track("login_success", {
+      userId: user.id,
+      metadata: { isNewUser, provider: oauthUser.provider ?? "unknown" },
+    });
 
     return {
       accessToken,

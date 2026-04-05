@@ -29,6 +29,11 @@ export class TeamsController {
     return this.teamsService.create(req.user.userId, dto);
   }
 
+  @Get()
+  listTeams(@Request() req: AuthRequest) {
+    return this.teamsService.listTeams(req.user.userId);
+  }
+
   @Post("join")
   @HttpCode(HttpStatus.OK)
   join(@Request() req: AuthRequest, @Body() dto: JoinTeamDto) {

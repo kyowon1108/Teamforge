@@ -3,6 +3,7 @@ import { Response } from "express";
 import { Prisma } from "@prisma/client";
 import OpenAI from "openai";
 import { PrismaService } from "../../prisma/prisma.service";
+import { EventsService } from "../events/events.service";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -16,7 +17,10 @@ export class SurveyService {
     { status: "processing" | "done" | "failed"; progress: number; result?: unknown; userId: string }
   >();
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: EventsService,
+  ) {
     const apiKey = process.env.OPENAI_API_KEY;
     this.openai = apiKey ? new OpenAI({ apiKey }) : null;
   }
@@ -101,6 +105,8 @@ export class SurveyService {
   ) {
     const jobId = crypto.randomUUID();
     this.jobStore.set(jobId, { status: "processing", progress: 0, userId });
+
+    this.events.track("survey_submitted", { userId, teamId: body.teamId });
 
     // Save final answers
     await this.prisma.skillAssessment.upsert({
@@ -259,14 +265,78 @@ export class SurveyService {
       ? this._parseSkillVector(rawVector)
       : this._crossValidateSkillVector(this._calculateSkillVector(answers), answers);
 
+    const reliabilityScore = assessment.reliabilityScore ?? 0;
+    const recommendedRoles = this._recommendRoles(skillVector);
+    const positionPrediction = this._predictPosition(skillVector);
+
     return {
       userId,
       skillVector,
       experienceScore: assessment.experienceScore ?? 0,
-      reliabilityScore: assessment.reliabilityScore ?? 0,
-      recommendedRoles: this._recommendRoles(skillVector),
-      positionPrediction: this._predictPosition(skillVector),
+      reliabilityScore,
+      profileConfidence: this._toConfidenceLevel(reliabilityScore),
+      recommendedRoles,
+      positionPrediction,
+      explanations: this._generateExplanations(skillVector, answers, recommendedRoles, positionPrediction),
     };
+  }
+
+  private _toConfidenceLevel(score: number): "high" | "medium" | "low" {
+    if (score >= 75) return "high";
+    if (score >= 50) return "medium";
+    return "low";
+  }
+
+  private _generateExplanations(
+    skillVector: Record<string, number>,
+    answers: Record<string, unknown>,
+    recommendedRoles: string[],
+    positionPrediction: string,
+  ) {
+    const LABEL: Record<string, string> = {
+      backend: "백엔드", frontend: "프론트엔드", database: "데이터베이스",
+      devops: "DevOps", aiMl: "AI/ML", design: "디자인",
+    };
+
+    // Find top 2 skills
+    const sorted = Object.entries(skillVector).sort(([, a], [, b]) => b - a);
+    const top2 = sorted.slice(0, 2).filter(([, v]) => v > 0);
+    const bottom = sorted.filter(([, v]) => v < 2).slice(-2);
+    const topStrengths = (answers.topStrengths ?? []) as string[];
+    const projectCount = (answers.projectCount as number) ?? 0;
+    const actualRoles = (answers.actualRoles ?? []) as string[];
+
+    // Role reason
+    let roleReason = "";
+    if (top2.length >= 1 && recommendedRoles.length > 0) {
+      const topNames = top2.map(([k]) => LABEL[k] ?? k).join(", ");
+      roleReason = `${topNames} 영역 점수가 높아 ${recommendedRoles[0]} 역할이 추천되었어요.`;
+      if (projectCount > 0 && actualRoles.length > 0) {
+        roleReason += ` 실제 프로젝트에서 ${actualRoles.slice(0, 2).join(", ")} 경험이 확인되었어요.`;
+      }
+    }
+
+    // Strengths
+    let strengths = "";
+    if (top2.length >= 1) {
+      const topNames = top2.map(([k]) => LABEL[k] ?? k);
+      strengths = `${topNames.join("과 ")} 영역이 강점이에요.`;
+      if (topStrengths.length > 0) {
+        const selfMatch = topStrengths.some((s) =>
+          top2.some(([k]) => (LABEL[k] ?? "").includes(s) || s.includes(LABEL[k] ?? ""))
+        );
+        if (selfMatch) strengths += " 자기평가와 실제 데이터가 일치해요.";
+      }
+    }
+
+    // Improvements
+    let improvements = "";
+    if (bottom.length > 0) {
+      const bottomNames = bottom.map(([k]) => LABEL[k] ?? k).join(", ");
+      improvements = `${bottomNames} 영역은 아직 경험 데이터가 부족해요. 보조 역할로 시작하면 좋겠어요.`;
+    }
+
+    return { roleReason, strengths, improvements };
   }
 
   /**
