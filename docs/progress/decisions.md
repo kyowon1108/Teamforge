@@ -138,6 +138,48 @@ This file keeps the currently effective working decisions in a compact format.
 
 **일지:** [260406_07](./260406_07-shared-app-header.md)
 
+## KF-015 — Screen 9/10 외부 write-back 및 계약 형식은 ADR 확정 전 구현 불가
+
+**결론:** Screen 9 핸드오프 아티팩트의 GitHub/Notion/Slack 외부 연동과 Screen 10 킥오프 계약서의 저장 형식(PDF, DB 스냅샷, export API)은 별도 ADR이 확정되기 전까지 구현을 차단한다. 두 화면의 readiness는 `needs-adr`로 유지한다.
+
+**이유:** AI 생성 파일을 외부 시스템에 write-back하는 흐름은 돌이킬 수 없는 부작용(레포 커밋, 워크스페이스 생성)을 포함하므로 반드시 Human approval checkpoint와 함께 설계되어야 한다. 계약서 형식도 서명 법적 효력, 불변 스냅샷 저장 방식, export 포맷을 사전에 확정하지 않으면 DB 마이그레이션 비용이 급증할 수 있다.
+
+**차단 항목:** Screen 9 write-back 버튼 활성화, Screen 10 계약서 PDF export, 워크스페이스 프로비저닝 연동
+
+**영향 범위:** `apps/api/src/handoff/`, `apps/api/src/contract/`, `apps/web/app/team/[teamId]/handoff/`, `apps/web/app/team/[teamId]/contract/`, `docs/reviews/ai-artifacts/`
+
+**일지:** [260406 screen-flow design](./260406_screen5-11-flow-design.md) (screen-flow.md 설계 시 추가)
+
+## KF-016 — 레이더 차트는 순수 SVG 구현, 외부 차트 라이브러리 불도입
+
+**결론:** Screen 5 개인 결과 페이지의 6축 레이더 차트를 recharts, d3 등 외부 라이브러리 없이 순수 SVG 로 구현한다.
+
+**이유:** 레이더 차트 단일 목적을 위해 차트 라이브러리 전체를 번들에 추가하면 클라이언트 JS 크기가 불필요하게 증가한다. 6축 고정 형태는 SVG polygon/polyline 계산으로 충분히 구현 가능하며, 커스터마이징 유연성도 더 높다.
+
+**영향 범위:** `apps/web/app/team/[teamId]/result/result-client.tsx`
+
+**일지:** [260406_09](./260406_09-screen5-6-result-dashboard-implementation.md)
+
+## KF-017 — 설문 점수 계산은 NestJS 서비스 단 단일 수행
+
+**결론:** 6축 점수 계산 로직은 `apps/api/src/survey/survey.service.ts` 의 `getMyResult` 메서드에서만 수행한다. 프론트엔드는 계산된 `scores` 배열만 수신하며, 원본 answers 데이터를 받아 클라이언트에서 집계하지 않는다.
+
+**이유:** 점수 계산 로직이 클라이언트에 노출되면 설문 문항 가중치와 집계 방식이 공개된다. 서버 단 단일 계산으로 로직을 보호하고, 향후 가중치 조정 시 배포 없이 서버만 수정하면 된다.
+
+**영향 범위:** `apps/api/src/survey/survey.service.ts` (getMyResult), `apps/api/src/survey/survey.controller.ts` (GET result/me), `apps/web/app/team/[teamId]/result/`
+
+**일지:** [260406_09](./260406_09-screen5-6-result-dashboard-implementation.md)
+
+## KF-018 — Phase State Machine: 단방향 전이, 서비스 계층 계산
+
+**결론:** 킥오프 phase 는 `idle → survey_in_progress → survey_complete → topic_selected → ...` 단방향 전이만 허용한다. phase 값은 DB 컬럼이 아닌 서비스 계층(`kickoff.service.ts`)에서 현재 데이터 상태를 기반으로 계산한다.
+
+**이유:** DB에 phase 컬럼을 별도로 두면 실제 데이터 상태(설문 제출 수, 주제 선정 여부 등)와 phase 값이 불일치할 위험이 있다. 서비스 계층에서 매번 계산하면 단일 진실원천이 보장되고, phase 정의 변경 시 마이그레이션이 불필요하다.
+
+**영향 범위:** `apps/api/src/kickoff/kickoff.service.ts`, `apps/web/app/team/[teamId]/dashboard/kickoff-dashboard-client.tsx`
+
+**일지:** [260406_09](./260406_09-screen5-6-result-dashboard-implementation.md)
+
 ## KF-014 — `/dev-preview`는 PROTECTED_PATHS 포함 대상
 
 **결론:** Figma 캡처 전용 경로인 `/dev-preview`도 `middleware.ts`의 PROTECTED_PATHS에 포함하여 인증 없이는 접근할 수 없도록 한다.

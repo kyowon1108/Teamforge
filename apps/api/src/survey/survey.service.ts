@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../../generated/prisma';
 import { SurveyAnswersSchema, SurveyMetadataSchema } from '@teamforge/contracts';
+import type { SurveyAnswers } from '@teamforge/contracts';
 import type { SaveDraftDto } from './dto/save-draft.dto';
 
 @Injectable()
@@ -76,8 +77,8 @@ export class SurveyService {
     });
 
     if (existing?.submitted) {
-      // 이미 제출된 경우 200 반환, 내용 수정 없음
-      return existing;
+      // 이미 제출된 경우 200 반환, 내용 수정 없음 (answers 제외하고 반환)
+      return { id: existing.id, teamId: existing.teamId, userId: existing.userId, submitted: existing.submitted, submittedAt: existing.submittedAt, updatedAt: existing.updatedAt };
     }
 
     const autosavedAt = new Date().toISOString();
@@ -105,7 +106,8 @@ export class SurveyService {
       },
     });
 
-    return record;
+    // answers 제외하고 반환 — 최소 권한 원칙
+    return { id: record.id, teamId: record.teamId, userId: record.userId, submitted: record.submitted, submittedAt: record.submittedAt, updatedAt: record.updatedAt };
   }
 
   /**
@@ -119,7 +121,172 @@ export class SurveyService {
       where: { teamId_userId: { teamId, userId } },
     });
 
-    return record ?? null;
+    if (!record) return null;
+    // metadata(autosavedAt 등 내부 필드) 제외, answers는 draft 복원 목적으로 포함
+    const { metadata: _meta, ...safe } = record;
+    return safe;
+  }
+
+  /**
+   * GET /api/teams/:teamId/survey/result/me
+   * Screen 5 — 내 설문 결과 (6축 레이더 차트 점수 계산)
+   */
+  async getMyResult(teamId: string, userId: string) {
+    const membership = await this.requireMembership(teamId, userId);
+
+    if (membership.role === 'observer') {
+      throw new ForbiddenException({
+        code: 'OBSERVER_FORBIDDEN',
+        message: '옵저버는 설문 결과를 조회할 수 없습니다',
+      });
+    }
+
+    const record = await this.prisma.surveyResponse.findUnique({
+      where: { teamId_userId: { teamId, userId } },
+    });
+
+    if (!record || !record.submitted) {
+      return {
+        axisScores: {
+          기획력: 0,
+          기술력: 0,
+          소통력: 0,
+          추진력: 0,
+          창의력: 0,
+          성장력: 0,
+        },
+        strengths: [],
+        growthAreas: [],
+        suggestedRole: null,
+        submitted: false,
+        submittedAt: null,
+      };
+    }
+
+    const rawAnswers = record.answers as Record<string, unknown>;
+    const parsed = SurveyAnswersSchema.safeParse(rawAnswers);
+    const answers: SurveyAnswers = parsed.success ? parsed.data : (rawAnswers as SurveyAnswers);
+
+    const axisScores = this.calculateAxisScores(answers);
+
+    const entries = Object.entries(axisScores) as [string, number][];
+    const sorted = entries.sort((a, b) => b[1] - a[1]);
+    const strengths = sorted.slice(0, 2).map(([name]) => name);
+    const growthAreas = sorted.slice(-2).map(([name]) => name);
+
+    const archetypeRoleMap: Record<string, string> = {
+      initiator: '팀 리더',
+      architect: '아키텍트',
+      executor: '개발자',
+      coordinator: '코디네이터',
+      documenter: '문서화 담당',
+    };
+    const suggestedRole = answers.workArchetype
+      ? (archetypeRoleMap[answers.workArchetype] ?? null)
+      : null;
+
+    return {
+      axisScores,
+      strengths,
+      growthAreas,
+      suggestedRole,
+      submitted: true,
+      submittedAt: record.submittedAt?.toISOString() ?? null,
+    };
+  }
+
+  private calculateAxisScores(answers: SurveyAnswers): {
+    기획력: number;
+    기술력: number;
+    소통력: number;
+    추진력: number;
+    창의력: number;
+    성장력: number;
+  } {
+    // 기획력
+    const backgroundBonusMap: Record<string, number> = {
+      cs_major: 40,
+      working_dev: 35,
+      bootcamp: 25,
+      non_major: 15,
+      pm_designer: 20,
+    };
+    const backgroundBonus = answers.backgroundType
+      ? (backgroundBonusMap[answers.backgroundType] ?? 0)
+      : 0;
+    const experienceTier = answers.experienceTier ?? 1;
+    const 기획력 = Math.min(100, Math.round((experienceTier / 5) * 60 + backgroundBonus));
+
+    // 기술력
+    const techStackCount = answers.techStackList?.length ?? 0;
+    const techStackScore = (Math.min(techStackCount, 8) / 8) * 50;
+    let skillRatingsScore = 0;
+    if (answers.skillRatings && Object.keys(answers.skillRatings).length > 0) {
+      const vals = Object.values(answers.skillRatings);
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      skillRatingsScore = (avg / 5) * 50;
+    } else {
+      skillRatingsScore = techStackScore;
+    }
+    const 기술력 = Math.min(
+      100,
+      Math.round(
+        answers.skillRatings && Object.keys(answers.skillRatings).length > 0
+          ? techStackScore + skillRatingsScore
+          : techStackScore * 2,
+      ),
+    );
+
+    // 소통력
+    const gitCollabLevel = answers.gitCollabLevel ?? 0;
+    const projectCount = answers.projectCount ?? 0;
+    const actualRoles = answers.actualRoles ?? [];
+    const 소통력 = Math.min(
+      100,
+      Math.round(
+        (gitCollabLevel / 4) * 50 +
+          (Math.min(projectCount, 5) / 5) * 30 +
+          (actualRoles.length >= 2 ? 20 : 10),
+      ),
+    );
+
+    // 추진력
+    const archetypeScoreMap: Record<string, number> = {
+      initiator: 85,
+      architect: 75,
+      executor: 70,
+      coordinator: 65,
+      documenter: 55,
+    };
+    const archetypeBase = answers.workArchetype
+      ? (archetypeScoreMap[answers.workArchetype] ?? 60)
+      : 60;
+    const workStyleVector = answers.workStyleVector ?? [0, 0, 0];
+    const workStyleBonus =
+      (workStyleVector.reduce((a: number, b: number) => a + b, 0) / 100 / 3) * 15;
+    const 추진력 = Math.min(100, Math.round(archetypeBase + workStyleBonus));
+
+    // 창의력
+    const freeText = answers.freeText ?? '';
+    const 창의력 = Math.min(
+      100,
+      freeText.length > 0
+        ? Math.round((Math.min(freeText.length, 300) / 300) * 60 + 40)
+        : 30,
+    );
+
+    // 성장력
+    const githubUrl = answers.githubUrl ?? '';
+    const selfIntro = answers.selfIntro ?? '';
+    const 성장력 = Math.min(
+      100,
+      Math.round(
+        (githubUrl.length > 0 ? 40 : 0) +
+          (Math.min(selfIntro.length, 300) / 300) * 60,
+      ),
+    );
+
+    return { 기획력, 기술력, 소통력, 추진력, 창의력, 성장력 };
   }
 
   /**
@@ -165,7 +332,8 @@ export class SurveyService {
       where: { teamId_userId: { teamId, userId } },
     });
     if (existing?.submitted) {
-      return existing;
+      // 이미 제출 — answers 제외하고 반환
+      return { id: existing.id, teamId: existing.teamId, userId: existing.userId, submitted: existing.submitted, submittedAt: existing.submittedAt, updatedAt: existing.updatedAt };
     }
 
     const submittedAt = new Date();
@@ -189,6 +357,7 @@ export class SurveyService {
       },
     });
 
-    return record;
+    // answers 제외하고 반환 — 최소 권한 원칙
+    return { id: record.id, teamId: record.teamId, userId: record.userId, submitted: record.submitted, submittedAt: record.submittedAt, updatedAt: record.updatedAt };
   }
 }

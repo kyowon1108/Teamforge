@@ -12,6 +12,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { ExchangeTokenPayload } from '@teamforge/contracts';
 import { SurveyService } from './survey.service';
 import { SaveDraftDto } from './dto/save-draft.dto';
+import { ParseTeamIdPipe } from '../common/parse-team-id.pipe';
 
 @Controller('teams/:teamId/survey')
 export class SurveyController {
@@ -25,7 +26,7 @@ export class SurveyController {
   @Post('draft')
   @HttpCode(HttpStatus.OK)
   async saveDraft(
-    @Param('teamId') teamId: string,
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
     @CurrentUser() user: ExchangeTokenPayload,
     @Body() body: unknown,
   ) {
@@ -39,10 +40,22 @@ export class SurveyController {
    */
   @Get('me')
   async getMyResponse(
-    @Param('teamId') teamId: string,
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
     @CurrentUser() user: ExchangeTokenPayload,
   ) {
     return this.surveyService.getMyResponse(teamId, user.sub);
+  }
+
+  /**
+   * GET /api/teams/:teamId/survey/result/me
+   * Screen 5 — 내 설문 결과 (레이더 차트 6축 점수)
+   */
+  @Get('result/me')
+  async getMyResult(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+  ) {
+    return this.surveyService.getMyResult(teamId, user.sub);
   }
 
   /**
@@ -52,7 +65,7 @@ export class SurveyController {
   @Post('submit')
   @HttpCode(HttpStatus.CREATED)
   async submitSurvey(
-    @Param('teamId') teamId: string,
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
     @CurrentUser() user: ExchangeTokenPayload,
     @Body() body: unknown,
   ) {

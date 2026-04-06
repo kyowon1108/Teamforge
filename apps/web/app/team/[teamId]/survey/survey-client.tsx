@@ -119,8 +119,8 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
       setSubmitting(false);
       return;
     }
-    // result 페이지로 이동 (Screen 5 미구현 → dashboard fallback)
-    router.push(`/dashboard`);
+    // Screen 5: 개인 결과 페이지로 이동
+    router.push(`/team/${teamId}/result`);
   };
 
   const currentValid = isSectionValid(currentSection, answers);

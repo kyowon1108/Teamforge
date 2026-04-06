@@ -60,8 +60,8 @@ export default async function SurveyPage({ params }: PageProps) {
   }
 
   if (submitted) {
-    // Screen 5 (result) 미구현 → dashboard fallback
-    redirect(`/dashboard`);
+    // 이미 제출 완료 → Screen 5 결과 페이지로
+    redirect(`/team/${teamId}/result`);
   }
 
   const userName = session.user?.name ?? session.user?.email ?? '사용자';

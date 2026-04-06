@@ -8,6 +8,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { UsersModule } from "./users/users.module";
 import { TeamsModule } from "./teams/teams.module";
 import { SurveyModule } from "./survey/survey.module";
+import { KickoffModule } from "./kickoff/kickoff.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SurveyModule } from "./survey/survey.module";
     UsersModule,
     TeamsModule,
     SurveyModule,
+    KickoffModule,
   ],
   controllers: [AppController],
   providers: [
