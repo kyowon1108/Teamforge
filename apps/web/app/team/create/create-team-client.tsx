@@ -49,7 +49,13 @@ export default function CreateTeamClient() {
   }
 
   function handleGoToDashboard() {
-    router.push(createdTeamId ? `/team/${createdTeamId}/survey` : '/dashboard');
+    // createdTeamId가 예상 형식(cuid/uuid)이 아니면 open redirect 방지를 위해 dashboard로 fallback
+    const TEAM_ID_RE = /^[a-z0-9_-]{20,36}$/i;
+    if (createdTeamId && TEAM_ID_RE.test(createdTeamId)) {
+      router.push(`/team/${createdTeamId}/survey`);
+    } else {
+      router.push('/dashboard');
+    }
   }
 
   return (

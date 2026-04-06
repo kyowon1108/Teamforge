@@ -37,6 +37,12 @@ export default function JoinTeamClient() {
           setError(result.error);
           return;
         }
+        // teamId가 예상 형식(cuid/uuid)이 아니면 open redirect 방지를 위해 dashboard로 fallback
+        const TEAM_ID_RE = /^[a-z0-9_-]{20,36}$/i;
+        if (!result.teamId || !TEAM_ID_RE.test(result.teamId)) {
+          router.push('/dashboard');
+          return;
+        }
         router.push(`/team/${result.teamId}/survey`);
       } catch {
         setError('네트워크 오류가 발생했습니다. 다시 시도해 주세요.');

@@ -10,6 +10,23 @@ import { createTeamAction, joinTeamAction } from './actions';
 
 type Tab = 'create' | 'join';
 
+// 서버 에러 메시지 whitelist — 외부 data.message가 그대로 렌더링되지 않도록 정규화
+const ALLOWED_TEAM_ERRORS = new Set([
+  '팀 이름이 이미 사용 중입니다.',
+  '초대 코드가 유효하지 않습니다',
+  '이미 해당 팀의 멤버입니다',
+  '팀 생성에 실패했습니다.',
+  '팀 참가에 실패했습니다.',
+  '네트워크 오류가 발생했습니다. 다시 시도해 주세요.',
+  '로그인이 필요합니다.',
+]);
+function normalizeTeamError(err: string): string {
+  return ALLOWED_TEAM_ERRORS.has(err) ? err : '오류가 발생했습니다. 다시 시도해 주세요.';
+}
+
+// teamId open redirect 방지 — cuid/uuid 형식만 허용
+const TEAM_ID_RE = /^[a-z0-9_-]{20,36}$/i;
+
 interface TeamSetupClientProps {
   initialTab: Tab;
 }
@@ -38,7 +55,7 @@ function CreateTeamSection() {
       try {
         const result = await createTeamAction(teamName);
         if (result.error) {
-          setError(result.error);
+          setError(normalizeTeamError(result.error));
           return;
         }
         setInviteCode(result.inviteCode);
@@ -57,7 +74,10 @@ function CreateTeamSection() {
   }
 
   function handleGoToSurvey() {
-    if (!createdTeamId) return;
+    if (!createdTeamId || !TEAM_ID_RE.test(createdTeamId)) {
+      router.push('/dashboard');
+      return;
+    }
     router.push(`/team/${createdTeamId}/survey`);
   }
 
@@ -175,7 +195,11 @@ function JoinTeamSection() {
       try {
         const result = await joinTeamAction(code, joinRole);
         if (result.error) {
-          setError(result.error);
+          setError(normalizeTeamError(result.error));
+          return;
+        }
+        if (!result.teamId || !TEAM_ID_RE.test(result.teamId)) {
+          router.push('/dashboard');
           return;
         }
         router.push(`/team/${result.teamId}/survey`);

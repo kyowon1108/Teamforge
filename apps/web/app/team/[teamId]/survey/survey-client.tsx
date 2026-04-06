@@ -29,6 +29,15 @@ interface Props {
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+// 서버 에러 메시지 whitelist — 외부에서 오는 data.message가 그대로 렌더링되지 않도록 정규화
+const ALLOWED_SUBMIT_ERRORS = new Set([
+  '제출에 실패했습니다.',
+  '네트워크 오류가 발생했습니다.',
+]);
+function normalizeSubmitError(err: string): string {
+  return ALLOWED_SUBMIT_ERRORS.has(err) ? err : '제출 중 오류가 발생했습니다. 다시 시도해 주세요.';
+}
+
 function isSectionValid(section: number, answers: Record<string, unknown>): boolean {
   switch (section) {
     case 1:
@@ -106,7 +115,7 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
     setSubmitError(null);
     const { error } = await submitSurveyAction(teamId, answers);
     if (error) {
-      setSubmitError(error);
+      setSubmitError(normalizeSubmitError(error));
       setSubmitting(false);
       return;
     }

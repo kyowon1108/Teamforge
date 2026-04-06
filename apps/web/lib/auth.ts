@@ -70,7 +70,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } catch (err) {
           // sync 실패 시 로그인은 계속 진행 (non-fatal)
           // apiUserId가 없으면 이후 API 호출이 401로 실패하므로 반드시 로깅
-          console.error('[auth] sync 실패 — apiUserId 미설정:', err);
+          // err 전체 대신 message만 출력 — 내부 URL/시크릿 노출 방지
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('[auth] sync 실패 — apiUserId 미설정:', msg);
         }
         token.email = user.email;
         token.name = user.name;
