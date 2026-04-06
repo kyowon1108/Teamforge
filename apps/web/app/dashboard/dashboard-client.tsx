@@ -102,7 +102,7 @@ export default function DashboardClient({ userName, teams, fetchError }: Dashboa
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push(`/team/${team.teamId}`)}
+                    onClick={() => router.push(`/team/${team.teamId}/survey`)}
                     style={{ minHeight: '44px' }}
                   >
                     계속하기
