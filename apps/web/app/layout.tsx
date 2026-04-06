@@ -11,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko" suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground">
         {children}
-</body>
+      </body>
     </html>
   );
 }
