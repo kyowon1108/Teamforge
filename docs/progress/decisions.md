@@ -87,3 +87,33 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `apps/api/src/auth/sync.guard.ts`, `apps/web/lib/auth.ts` jwt callback, `SYNC_INTERNAL_SECRET` 환경변수
 
 **일지:** [260406_05](./260406_05-css-auth-bff-dashboard.md)
+
+## KF-009 — SurveyResponse JSONB answers는 단일 통합 스키마로 관리
+
+**결론:** 6개 설문 섹션 전체를 하나의 `SurveyAnswersSchema` Zod 스키마(`packages/contracts/src/jsonb/survey-answers.schema.ts`)로 통합 관리한다. 섹션별 분리 스키마를 두지 않는다.
+
+**이유:** JSONB 필드는 DB 수준에서 타입 강제가 없으므로 애플리케이션 계층에서 단일 스키마로 파싱·검증해야 일관성이 보장된다. 섹션 분리 시 섹션 간 의존 검증이 불가능해지고, 부분 저장(드래프트) 처리도 어려워진다.
+
+**영향 범위:** `packages/contracts/src/jsonb/survey-answers.schema.ts`, `apps/api/src/survey/survey.service.ts`, `apps/web/app/team/[teamId]/survey/actions.ts`
+
+**일지:** [260406_06](./260406_06-screen4-survey-implementation.md)
+
+## KF-010 — submitSurvey는 idempotent last-write-wins, submitted=true 후 재제출 차단
+
+**결론:** 드래프트 저장(`saveDraft`)은 언제든 덮어쓸 수 있다. 최종 제출(`submitSurvey`)은 `submitted=true`로 전환되며, 이후 재제출 요청은 서비스 계층에서 400 오류로 차단한다. draft 상태에서의 중복 POST는 last-write-wins로 처리한다.
+
+**이유:** 설문은 한 번 제출하면 팀 결과 집계에 포함된다. 재제출을 허용하면 결과 페이지 일관성이 깨진다. 동시에 네트워크 재시도로 인한 중복 draft 저장은 방어할 필요가 없으므로 last-write-wins가 적절하다.
+
+**영향 범위:** `apps/api/src/survey/survey.service.ts`, `apps/web/app/team/[teamId]/survey/actions.ts`
+
+**일지:** [260406_06](./260406_06-screen4-survey-implementation.md)
+
+## KF-011 — Section 6 포트폴리오는 GitHub URL + selfIntro만 보관, PDF 업로드 제거
+
+**결론:** Section 6 포트폴리오 섹션에서 PDF 파일 업로드를 제거하고 GitHub URL과 자기소개(selfIntro) 텍스트만 `SurveyAnswersSchema`에 포함한다.
+
+**이유:** PDF 업로드는 magic bytes 검증, Supabase Storage 연동, 업로드 진행 UX 등 별도 인프라가 필요하다. Screen 4 구현 범위를 킥오프 설문 핵심 데이터 수집으로 한정하고, 파일 업로드는 추후 별도 기능으로 분리한다.
+
+**영향 범위:** `packages/contracts/src/jsonb/survey-answers.schema.ts`, `apps/web/components/survey/sections/Section6Portfolio.tsx`
+
+**일지:** [260406_06](./260406_06-screen4-survey-implementation.md)

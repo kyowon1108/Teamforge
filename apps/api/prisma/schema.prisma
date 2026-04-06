@@ -15,17 +15,18 @@ enum TeamRole {
 }
 
 model User {
-  id            String           @id @default(uuid())
-  email         String           @unique
-  name          String?
-  emailVerified DateTime?
-  image         String?
-  role          String?
-  accounts      Account[]
-  sessions      Session[]
-  memberships   TeamMembership[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id              String           @id @default(uuid())
+  email           String           @unique
+  name            String?
+  emailVerified   DateTime?
+  image           String?
+  role            String?
+  accounts        Account[]
+  sessions        Session[]
+  memberships     TeamMembership[]
+  surveyResponses SurveyResponse[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Account {
@@ -63,13 +64,14 @@ model VerificationToken {
 }
 
 model Team {
-  id          String           @id @default(uuid())
-  name        String
-  inviteCode  String           @unique
-  description String?
-  memberships TeamMembership[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id              String           @id @default(uuid())
+  name            String
+  inviteCode      String           @unique
+  description     String?
+  memberships     TeamMembership[]
+  surveyResponses SurveyResponse[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model TeamMembership {
@@ -84,4 +86,22 @@ model TeamMembership {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, userId])
+}
+
+model SurveyResponse {
+  id          String    @id @default(uuid())
+  teamId      String
+  userId      String
+  answers     Json      // SurveyAnswersSchema로 검증 후 저장
+  metadata    Json?     // SurveyMetadataSchema (draftStep, autosavedAt 등)
+  submitted   Boolean   @default(false)
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId, submitted])
 }

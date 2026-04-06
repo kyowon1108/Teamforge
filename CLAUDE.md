@@ -56,9 +56,35 @@
 (파일: `figma.com/design/vvmx5ls8xftcqB7Cvlse3Q/`)
 
 현재 파일 구성:
-- `tf-tokens` 변수 컬렉션 (color/primary 등 15개 토큰)
+- `tf-tokens` 변수 컬렉션 (color/primary 등 28개 토큰)
 - `Button` 컴포넌트 세트 (Primary/Secondary/Outline/Ghost/Destructive × sm/md/lg)
-- `TeamForge — Component Overview` 프레임 (1440×900)
+- `Page 1`: `TeamForge — Component Overview` 프레임 (1440×900)
+- `Screen 1 — Login`: desktop(1440) + mobile(390) 캡처
+- `Screen 2 — Dashboard`: empty/teams 상태 × desktop/mobile 캡처
+- `Screen 3a — Team Create`: desktop + mobile 캡처
+- `Screen 3b — Team Join`: desktop + mobile 캡처
+
+---
+
+### `tf-figma-sync` — 웹 페이지 → Figma 스크린샷 동기화 에이전트
+
+**구현된 페이지를 desktop(1440px) + mobile(390px)으로 캡처해 Figma에 업데이트.**
+
+워크플로우:
+1. `layout.tsx`에 Figma capture script 임시 주입
+2. Figma 파일에 대상 페이지 준비 (없으면 생성)
+3. 각 페이지별 capture ID 일괄 생성 (`generate_figma_design`)
+4. Playwright로 viewport 조절 후 페이지 순차 탐색
+5. capture 완료 폴링 → 프레임 이름 정리
+6. `layout.tsx` capture script 제거
+
+사용:
+```
+/tfo "Figma 전체 스크린샷 업데이트" figmaSync=true
+/tfo "Screen 4 구현" figmaSync=true   # 구현 완료 후 자동 캡처
+```
+
+**중요**: 인증 필요 화면은 `/dev-preview?screen=XXX` 경로로 우회. `dev-preview/page.tsx`에 미리 등록 필요.
 
 ---
 
@@ -154,6 +180,7 @@ Screen 9 AI 파일 빌더(Agent 4)가 생성하는 파일 형식 참고용으로
   → tf-db (Prisma 스키마 먼저, 필요 시)
   → tf-backend (API 구현, 필요 시)
   → tf-frontend (Next.js 구현, 필요 시)
+  → tf-figma-sync (figmaSync=true 플래그 시, 구현 완료 후 캡처)
   → tf-supervisor + tf-security (병렬 검증)
   → tf-docs (진행 일지 + 결정 키 + ADR)
   → tf-commit (blocked 없을 때만 커밋)
@@ -168,6 +195,7 @@ Screen 9 AI 파일 빌더(Agent 4)가 생성하는 파일 형식 참고용으로
 | `tf-db` | apps/api/prisma/, packages/contracts/ | DB 스키마 + Zod 계약 |
 | `tf-backend` | apps/api/src/ | NestJS 서비스/컨트롤러 |
 | `tf-frontend` | apps/web/ | Next.js 페이지/컴포넌트 |
+| `tf-figma-sync` | apps/web/app/layout.tsx (임시) | 구현 페이지 → Figma desktop+mobile 캡처 |
 | `tf-supervisor` | 읽기 전용 | git diff 기반 도메인 침범 감시 |
 | `tf-security` | 읽기 전용 | 보안 취약점 감사 (G1~G10) |
 | `tf-docs` | docs/ | 진행 일지 + 결정 키 + ADR 자동화 |
@@ -291,37 +319,46 @@ scope 예시: `auth`, `survey`, `meeting`, `changes`, `ai/agent1`, `db/migration
 
 ---
 
-## 현재 진행 Phase (2026-04-05 기준)
+## 현재 진행 Phase (2026-04-06 기준)
 
-**Phase 1~4 킥오프 플로우 대부분 구현 완료.**
+**인증·팀 기초 구현 완료. 킥오프 플로우(Screen 4~10) 전체 미구현.**
 
-### 구현 완료
-- Screen 1 로그인 (Google / GitHub / Kakao OAuth)
-- Screen 2 역할 선택
-- Screen 3a 팀 생성 / 3b 팀 참가
-- Screen 4 스킬 설문 (6섹션 15문항)
-- Screen 5 개인 결과 (레이더 차트)
-- Screen 6 팀 대시보드 (부분)
-- Screen 7 킥오프 주제 결정 (AI 브레인스톰 + 직접 입력)
-- Screen 8 킥오프 아키텍처 빌더 (옵션 카드 + pending 다이어그램)
-- Screen 10 킥오프 최종 요약 (부분)
+### 실제 구현 완료 (page.tsx 파일 존재 + 동작)
+- Screen 1 `/login` — Google / GitHub / Kakao OAuth, JWT exchange token BFF
+- Screen 3a `/team/create` — 팀 생성, crypto 초대코드
+- Screen 3b `/team/join` — 초대코드 + 역할 선택 (member/observer)
+- Screen 6 `/dashboard` — 다중 팀 목록, "새 팀 만들기" / "초대코드 참가" CTA
+
+### 변경/deprecated
+- Screen 2 `/role-select` → **deprecated**, `/dashboard`로 리다이렉트
+  - 역할 선택은 팀 참가(Screen 3b) 과정에서 처리
+  - 인증 플로우: Login → Dashboard (role-select 중간 화면 제거)
+
+### 인프라 완료
+- NextAuth v5 JWT 전략 (Prisma adapter 없음, 세션 쿠키)
+- `/api/auth/sync` BFF sync endpoint (X-Sync-Secret 보호)
+- JtiCacheService 인메모리 replay 방지 (KF-005: 추후 Redis 교체 예정)
+- SEED CSS 토큰 (`--tf-bg-*`, `--tf-fg-*`, `--tf-stroke-*`) 전체 이식
+- Figma 파일: tf-tokens 28개, Button Component Set 15 variants, Screen 1~3 캡처
 
 ### 즉시 해야 할 것 (Now)
-1. Screen 7 Markdown 렌더링 누락 수정 (topic 채팅 AI 응답)
-2. `integrations` Prisma 스키마 추가
-3. Screen 10 스프린트 설정 UI
+1. Screen 4 스킬 설문 — DB 스키마 + API + UI (6섹션 15문항, 원본 Teamforge에서 포팅)
+2. `SurveyResponse` Prisma 모델 추가
+3. screen-flow.md 플로우 현실화 (Login → Dashboard, role-select 제거)
 
-### 다음 (Next) — 킥오프 보완 항목 (KF-003 배치 A→B→C→D)
-- 배치 A: Out of Scope + 성공 기준 + 협업 규칙 + 팀원 우려 입력
-- 배치 B: 역할 수락/조정 UI
-- 배치 C: 첫 Issue 생성 + 첫 회의 agenda 자동 생성
-- 배치 D: Summary 서명 게이트
+### 다음 (Next)
+- Screen 5 `/team/[teamId]/result` — 개인 결과 (레이더 차트)
+- Screen 6 `/team/[teamId]/dashboard` — 팀 대시보드 (survey 상태 집계)
+- Screen 7 `/team/[teamId]/topic` — 킥오프 주제 결정
+- Screen 8 `/team/[teamId]/structure` + `/stack` — 아키텍처/스택 선택
 
 ### 나중 (Later)
-- Screen 9 도구 세팅 (KF-002: integrations 모델 + Screen 10 흡수 방식)
+- Screen 9 `/team/[teamId]/handoff` — 협업 아티팩트 (needs-adr)
+- Screen 10 `/team/[teamId]/contract` — 킥오프 계약 게이트 (needs-adr)
+- Screen 11 `/team/[teamId]/meeting` — 회의 허브
+- Screen 12~14 — backlog
 - Agent 5 워크스페이스 프로비저닝
 - PDF/PPT 내보내기
-- Screen 11~14 (회의 허브, 방향 추적, 변경 관리, 대시보드)
 
 ---
 

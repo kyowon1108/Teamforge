@@ -18,3 +18,4 @@ This folder records the implementation and planning trail by session.
 | 2026-04-06 | `260406_03-full-structure-analysis.md` | Full structure analysis — auth gap, design system baseline, security blockers |
 | 2026-04-06 | `260406_04-auth-infra-screen1-3.md` | Auth infra complete, design system base, Screen 1-3 implemented, 7 security fixes |
 | 2026-04-06 | `260406_05-css-auth-bff-dashboard.md` | CSS system port, BFF JWT pattern, multi-team dashboard, Figma Button set |
+| 2026-04-06 | `260406_06-screen4-survey-implementation.md` | Screen 4 skill survey full stack, Figma sync agent, CLAUDE.md rebase, security fixes |

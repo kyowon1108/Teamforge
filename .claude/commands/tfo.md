@@ -32,9 +32,15 @@ TeamForge 프로젝트의 모든 작업 진입점. Codex에 먼저 계획을 검
    Backend 변경 있으면: tf-backend (DB 완료 후)
    Frontend 변경 있으면: tf-frontend (Backend 완료 후)
    UI 설계 포함 시 (구현 완료 후):
-     3c. tf-design post-build (figmaFileKey 있으면 Figma write-back 포함)
+     3c. tf-design post-build (figmaFileKey 있으면 Figma annotation write-back)
      → STATUS=awaiting_approval이면 사용자에게 결과 확인 요청 후 진행
      3d. [사용자 승인 체크포인트 #2] "구현 결과를 Figma에 반영했어요. 다음 단계 진행할까요?"
+   Figma 스크린샷 동기화 포함 시 (figmaSync=true 또는 명시적 요청 시):
+     3e. tf-figma-sync 호출
+         - 구현된 페이지를 desktop(1440) + mobile(390)으로 캡처
+         - Figma 파일에 업데이트 (generate_figma_design + Playwright 조합)
+         - 완료 후 layout.tsx의 capture script 자동 제거
+     → 사용 예시: /tfo "Screen 4 구현" figmaSync=true
   │
   ▼
 4. [병렬 검증]
@@ -84,6 +90,15 @@ Figma 연동 시 (figmaFileKey 추가)
 /tfo "Button 컴포넌트 구현" figmaFileKey=vvmx5ls8xftcqB7Cvlse3Q
 /tfo "Screen 3a 팀 생성 UI 개선" figmaFileKey=vvmx5ls8xftcqB7Cvlse3Q
 ```
+
+Figma 스크린샷 동기화 시 (figmaSync=true 추가)
+
+```
+/tfo "Figma 전체 스크린샷 업데이트" figmaSync=true
+/tfo "Screen 4 구현 후 Figma 동기화" figmaSync=true
+```
+
+figmaSync=true 단독 사용 시 tf-figma-sync만 실행 (구현 에이전트 생략 가능)
 
 ## 에이전트 상태 보고 형식
 
