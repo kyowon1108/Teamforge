@@ -7,15 +7,12 @@ import {
   Param,
   Post,
   UnprocessableEntityException,
-  UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { ExchangeTokenPayload } from '@teamforge/contracts';
 import { SurveyService } from './survey.service';
 import { SaveDraftDto } from './dto/save-draft.dto';
 
-@UseGuards(JwtAuthGuard)
 @Controller('teams/:teamId/survey')
 export class SurveyController {
   constructor(private readonly surveyService: SurveyService) {}

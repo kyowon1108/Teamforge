@@ -4,10 +4,10 @@
 import { z } from 'zod';
 
 export const ExchangeTokenPayloadSchema = z.object({
-  sub: z.string().cuid(),        // userId
+  sub: z.string().uuid(),        // userId
   email: z.string().email(),
   role: z.enum(['leader', 'member', 'observer']).optional(),
-  teamId: z.string().cuid().optional(),
+  teamId: z.string().uuid().optional(),
   jti: z.string().uuid(),        // 1회성 nonce
   iss: z.literal('teamforge-web'),
   aud: z.literal('teamforge-api'),
