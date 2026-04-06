@@ -56,7 +56,7 @@ This file keeps the currently effective working decisions in a compact format.
 
 **영향 범위:** `apps/web/middleware.ts`, NextAuth 세션 검사 로직
 
-**일지:** [260406_03](./260406_03-full-structure-analysis.md), [260406_04](./260406_04-auth-infra-screen1-3.md)
+**일지:** [260406_03](./260406_03-full-structure-analysis.md), [260406_04](./260406_04-auth-infra-screen1-3.md), [260406_08](./260406_08-codebase-edge-case-analysis-and-bug-fixes.md) (상태 재확인: 여전히 미완료, 수용 가능한 기술 부채로 유지 중)
 
 ## KF-006 — Server Actions를 인증된 API 호출의 표준 패턴으로 확정
 
@@ -117,3 +117,33 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `packages/contracts/src/jsonb/survey-answers.schema.ts`, `apps/web/components/survey/sections/Section6Portfolio.tsx`
 
 **일지:** [260406_06](./260406_06-screen4-survey-implementation.md)
+
+## KF-012 — AppHeader 높이는 CSS 변수 `--tf-app-header-height`로 단일 관리
+
+**결론:** 공유 AppHeader의 높이 값 `53px`을 `globals.css`의 `--tf-app-header-height` CSS 변수 하나로 관리한다. 하위 요소(스티키 바 등)는 이 변수를 참조한다.
+
+**이유:** 컴포넌트마다 하드코딩된 픽셀 값이 분산되면 AppHeader 높이 변경 시 모든 참조처를 찾아 수정해야 한다. 단일 CSS 변수로 관리하면 수정 범위가 `globals.css` 한 곳으로 한정된다.
+
+**영향 범위:** `apps/web/app/globals.css`, `apps/web/components/layout/AppHeader.tsx`, sticky 요소가 있는 모든 페이지
+
+**일지:** [260406_07](./260406_07-shared-app-header.md)
+
+## KF-013 — AppHeader는 Client Component 유지, signOut 인터랙션이 이유
+
+**결론:** AppHeader는 Client Component(`"use client"`)로 유지한다. Server Component로 전환하지 않는다.
+
+**이유:** signOut 버튼 클릭 핸들러가 반드시 클라이언트 인터랙션이 필요하다. RSC로 전환하면 인터랙티브 요소를 별도 Client 자식 컴포넌트로 분리해야 하며, 단일 헤더 컴포넌트의 복잡도 대비 이점이 없다.
+
+**영향 범위:** `apps/web/components/layout/AppHeader.tsx`
+
+**일지:** [260406_07](./260406_07-shared-app-header.md)
+
+## KF-014 — `/dev-preview`는 PROTECTED_PATHS 포함 대상
+
+**결론:** Figma 캡처 전용 경로인 `/dev-preview`도 `middleware.ts`의 PROTECTED_PATHS에 포함하여 인증 없이는 접근할 수 없도록 한다.
+
+**이유:** dev-preview는 인증 우회 화면 미리보기 용도이지만 스테이징 환경에서 외부에 노출되면 미완성 UI가 공개된다. 인증 보호를 유지하면서 Playwright 캡처 시에는 세션 쿠키를 주입하는 방식으로 대응한다.
+
+**영향 범위:** `apps/web/middleware.ts`, Figma 캡처 자동화 스크립트
+
+**일지:** [260406_07](./260406_07-shared-app-header.md)

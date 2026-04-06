@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Check, Loader2, Save, AlertCircle } from 'lucide-react';
 import { saveDraftAction, submitSurveyAction } from './actions';
@@ -62,8 +62,15 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
   const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   const updateAnswers = useCallback(
     (sectionAnswers: Record<string, unknown>) => {
@@ -96,9 +103,10 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    setSubmitError(null);
     const { error } = await submitSurveyAction(teamId, answers);
     if (error) {
-      console.error('[SurveyClient] 제출 실패:', error);
+      setSubmitError(error);
       setSubmitting(false);
       return;
     }
@@ -219,6 +227,26 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
       <div className="max-w-[640px] mx-auto px-4 py-8 pb-28">
         {renderSection()}
       </div>
+
+      {/* Submit error */}
+      {submitError && (
+        <div
+          className="fixed bottom-[65px] left-0 right-0 flex justify-center px-4 pointer-events-none"
+          style={{ zIndex: 20 }}
+        >
+          <div
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium shadow-md pointer-events-auto"
+            style={{
+              background: 'var(--tf-bg-layer-default)',
+              color: 'var(--tf-fg-negative)',
+              border: '1px solid var(--tf-stroke-negative)',
+            }}
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {submitError}
+          </div>
+        </div>
+      )}
 
       {/* Bottom navigation */}
       <div

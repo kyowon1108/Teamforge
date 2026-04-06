@@ -28,8 +28,17 @@ export default async function SurveyPage({ params }: PageProps) {
   try {
     const res = await apiFetch(`/api/teams/${teamId}/survey/me`);
 
+    if (res.status === 401) {
+      redirect('/login');
+    }
+
     if (res.status === 403) {
       // observer 역할 — 대시보드로 redirect
+      redirect('/dashboard');
+    }
+
+    if (res.status === 404) {
+      // 해당 팀 멤버 아님 — 대시보드로 redirect
       redirect('/dashboard');
     }
 
@@ -41,9 +50,13 @@ export default async function SurveyPage({ params }: PageProps) {
       }
       initialAnswers = data.answers ?? {};
       submitted = data.submitted ?? false;
+    } else {
+      // 기타 서버 에러 — 대시보드로 redirect
+      redirect('/dashboard');
     }
   } catch {
-    // API 미응답 시 빈 답변으로 진행
+    // API 미응답 시 대시보드로 fallback
+    redirect('/dashboard');
   }
 
   if (submitted) {

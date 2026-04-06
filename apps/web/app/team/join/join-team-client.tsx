@@ -37,7 +37,7 @@ export default function JoinTeamClient() {
           setError(result.error);
           return;
         }
-        router.push(`/team/${result.teamId}`);
+        router.push(`/team/${result.teamId}/survey`);
       } catch {
         setError('네트워크 오류가 발생했습니다. 다시 시도해 주세요.');
       }

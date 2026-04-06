@@ -49,7 +49,7 @@ export default function CreateTeamClient() {
   }
 
   function handleGoToDashboard() {
-    router.push(createdTeamId ? `/team/${createdTeamId}` : '/dashboard');
+    router.push(createdTeamId ? `/team/${createdTeamId}/survey` : '/dashboard');
   }
 
   return (
