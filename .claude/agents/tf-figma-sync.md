@@ -86,26 +86,39 @@ capture ID ↔ {url, viewport, figmaPageId} 매핑 테이블을 메모한다.
 
 ### Step 4: Desktop 캡처 (1440×900)
 
+**중요**: `browser_navigate`(Playwright headless)는 mcp.figma.com 제출이 안 될 수 있음.
+반드시 macOS `open` 명령어로 실제 브라우저에서 열어야 함.
+
 ```
-browser_resize(1440, 900)
-for each desktop capture:
-  browser_navigate(url + '#figmacapture=ID&figmaendpoint=...&figmadelay=2000')
-  browser_wait_for(time=3)
-  generate_figma_design(captureId=ID) → poll until completed or pending
+# Playwright로 viewport 확인용 스크린샷만 사용
+browser_resize(1440, 900)  ← Playwright 브라우저 뷰포트 확인용으로만 사용
+
+# 실제 캡처는 macOS open 명령어 사용
+Bash: open "http://localhost:3000/URL#figmacapture=ID&figmaendpoint=...&figmadelay=2000"
+wait_for(time=35)  ← 대형 페이지는 직렬화+업로드에 최대 30초 소요
+generate_figma_design(captureId=ID) → poll until completed
 ```
 
 polling 규칙:
-- pending → 5초 대기 후 재폴링 (최대 10회)
+- pending → 10초 대기 후 재폴링 (최대 5회)
 - completed → 다음 페이지로
-- 10회 초과 pending → 새 capture ID 생성 후 재시도 1회
+- 5회 초과 pending → 새 capture ID 생성 후 open 재시도 1회
 
-### Step 5: Mobile 캡처 (390×844)
+### Step 5: Mobile 캡처 (375×844)
 
 ```
-browser_resize(390, 844)
-for each mobile capture:
-  (Step 4와 동일 패턴)
+# 실제 캡처는 macOS open 명령어 사용 (viewport 지정 불가 — 브라우저 기본 크기 사용)
+Bash: open "http://localhost:3000/URL#figmacapture=ID&figmaendpoint=...&figmadelay=2000"
+wait_for(time=35)
+generate_figma_design(captureId=ID) → poll until completed
 ```
+
+**참고**: `open` 명령어로 열리는 브라우저 창 크기는 시스템 기본값(보통 375~480px).
+프레임 이름은 실제 캡처된 width로 기재 (예: 375px이면 "Mobile (375)").
+
+**Playwright headless가 pending에서 벗어나지 못하는 이유**: headless 브라우저에서
+mcp.figma.com으로의 fetch/XHR이 차단되는 것으로 추정. 실제 브라우저(Safari/Chrome)에서만
+정상 동작 확인됨.
 
 ### Step 6: Figma 프레임 이름 정리
 
