@@ -189,3 +189,47 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `apps/web/middleware.ts`, Figma 캡처 자동화 스크립트
 
 **일지:** [260406_07](./260406_07-shared-app-header.md)
+
+## KF-019 — Screen 7~8b 구현 순서 및 DB 스키마 확장 결정
+
+**결론:** Screen 7 → Screen 8a → Screen 8b 순으로 순차 구현한다. DB에 KickoffTopic, KickoffReaction, KickoffStructure, KickoffStack, MemberExperience 5개 테이블을 신규 추가한다. KF-018(phase 서비스 계층 계산)에 따라 Team 테이블에 phase 컬럼을 추가하지 않으며, 각 테이블의 confirmedAt/acceptedAt 존재 여부로 phase를 판단한다. KickoffReaction은 screen 컬럼으로 구분하는 단일 테이블로 통합한다.
+
+**이유:** 각 화면이 이전 phase를 게이트로 사용하는 단방향 의존성 때문에 순서를 건너뛸 수 없다. Screen 7이 Claude API 최초 호출 검증 지점이므로 AI 인프라를 가장 먼저 검증한다. KickoffReaction을 화면별로 분리하면 공통 집계 쿼리가 중복되고, 단일 테이블이 향후 Screen 9/10 반응 확장에도 유리하다.
+
+**영향 범위:** `apps/api/prisma/schema.prisma`, `apps/api/src/kickoff/kickoff.service.ts` (getPhase 확장), `packages/contracts/src/ai/`, `packages/contracts/src/jsonb/`
+
+**일지:** screen-flow.md Screen 7~8b 설계 가이드 (2026-04-06)
+
+## KF-020 — AI Job 처리는 polling 기반 202/200 패턴, ADR-003 확정 필요
+
+**결론:** Screen 7/8a의 Claude API 호출은 동기 HTTP 응답이 아닌 202 Accepted → polling 패턴으로 처리한다. 최초 요청 시 job ID를 반환하고, 클라이언트는 5초 간격 최대 5회 polling. 5회 초과 시 fallback UI 전환. AI 응답은 `packages/contracts/src/ai/` 스키마로 검증 후 저장하며 파싱 실패 3회 시 job을 failed 처리. Screen 8b(stack)는 AI 신규 생성 없이 acceptedBlocks 기반 옵션 매핑만 수행한다.
+
+**이유:** Claude API 응답 시간이 5~15초이므로 동기 처리 시 클라이언트 timeout 위험이 있다. polling은 서버 재시작 후에도 복구 가능한 상태를 보장하며, KF-001 구현 보완 문서의 "Long-running AI work must expose job state" 원칙에 부합한다. ADR-003에서 polling 간격, 재시도 횟수, fallback 조건을 공식화해야 한다.
+
+**차단 항목:** ADR-003 작성 전까지 Screen 7 AI 호출 구현 착수 불가.
+
+**영향 범위:** `apps/api/src/topic/`, `apps/api/src/structure/`, `packages/contracts/src/ai/`
+
+**일지:** screen-flow.md Screen 7~8b 설계 가이드 (2026-04-06)
+
+## KF-021 — Phase Transition은 NestJS 서비스 직접 처리, EventEmitter 미도입
+
+**결론:** Screen 7~8b의 kickoff phase transition은 EventEmitter 없이 서비스 계층에서 직접 처리한다. 각 write 엔드포인트(confirm, accept)가 자신의 서비스 메서드에서 phase 전이 조건을 검증하고 데이터를 저장한다. Screen 9/10의 외부 write-back이 필요해지는 시점(KF-015 ADR)에서 EventEmitter 또는 BullMQ 도입을 재검토한다.
+
+**이유:** Screen 7~8b의 phase transition은 모두 명시적 leader 액션으로만 발생하므로 이벤트 기반 비동기가 필요하지 않다. EventEmitter 도입 시 phase 전이 로직이 서비스 + 리스너에 분산되어 추적이 어려워진다. KF-018의 "서비스 계층 단일 계산" 원칙과 일관된다.
+
+**영향 범위:** `apps/api/src/kickoff/kickoff.service.ts`, `apps/api/src/topic/topic.service.ts`, `apps/api/src/structure/structure.service.ts`, `apps/api/src/stack/stack.service.ts`
+
+**일지:** screen-flow.md Screen 7~8b 설계 가이드 (2026-04-06)
+
+## KF-022 — Socket.io 도입은 Screen 7 착수 전 ADR-004로 결정, ADR 전까지 보류
+
+**결론:** Socket.io를 Screen 7에 최소 범위로 도입할지, Screen 11까지 미룰지는 ADR-004로 공식 결정한다. Screen 7의 reaction 실시간성은 polling으로 대체 가능하나, Screen 7 구현 시 도입해두면 Screen 11 실시간 협업에 재사용 가능하다. ADR-004 확정 전까지 Socket.io 관련 코드를 작성하지 않는다.
+
+**이유:** Socket.io는 인프라 의존성 추가를 수반한다. "Screen 7 단독 polling"과 "Screen 7에서 Socket.io 세팅"은 구현 비용 차이가 있으므로 결정 없이 착수하면 나중에 소급 리팩터링이 필요해진다. ADR을 통해 근거 있는 결정을 남겨야 한다.
+
+**차단 항목:** ADR-004 작성 전까지 Socket.io 서버 설정 코드 작성 불가.
+
+**영향 범위:** `apps/api/src/main.ts` (Socket.io 서버 설정), `apps/api/src/` 실시간 게이트웨이 모듈, `apps/web/hooks/` 클라이언트 소켓 훅
+
+**일지:** screen-flow.md Screen 7~8b 설계 가이드 (2026-04-06)

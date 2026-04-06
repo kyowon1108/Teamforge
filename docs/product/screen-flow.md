@@ -361,6 +361,7 @@ Scoring rules:
 **Realtime events (Socket.io):**
 - `survey:submitted` event → refreshes member status list without full page reload
 - Room: `team:{teamId}`
+- ⚠️ Socket.io deferred to Screen 11 (ADR-004). Using polling fallback until then.
 
 **API dependencies:**
 - `GET /api/teams/:teamId/members` — member list with survey status
@@ -405,6 +406,7 @@ Scoring rules:
 **Realtime events:**
 - `topic:reaction` → updates reaction counts live
 - `topic:confirmed` → all clients see topic locked state and CTA to next screen
+- ⚠️ Socket.io deferred to Screen 11 (ADR-004). Using 10-second polling fallback until then.
 
 **API dependencies:**
 - `GET /api/teams/:teamId/topic/suggestions` — AI-generated topic list (async job, poll if pending)
@@ -691,3 +693,372 @@ The existing `/team` entry in `PROTECTED_PATHS` already catches these as prefix 
 - Contract PDF/export format (Screen 10)
 
 **Required before:** `needs-adr` screens can move to `ready-for-build`
+
+---
+
+## Screen 7~8b 구현 설계 가이드
+
+> Added: 2026-04-06
+> Covers: Screen 7 Topic Decision, Screen 8a System Framing, Screen 8b Technical Narrowing
+> Scope: 구현 순서, DB 스키마 확장, AI 호출 아키텍처, Phase transition 처리, Socket.io 도입 시점, ADR 필요 여부
+
+---
+
+### 구현 순서 결정 (KF-019)
+
+**순서: Screen 7 → Screen 8a → Screen 8b (순차 구현)**
+
+각 화면은 이전 phase를 게이트로 사용하며, 데이터 의존성이 단방향이다.
+
+| 단계 | 화면 | 이유 |
+|------|------|------|
+| 1순위 | Screen 7 Topic Decision | `survey_complete` phase에서 직접 연결. DB 스키마가 가장 단순 (KickoffTopic 단일 테이블). Claude API 최초 호출 검증 지점이 됨. |
+| 2순위 | Screen 8a System Framing | Topic 확정 결과를 프롬프트 컨텍스트로 사용. KickoffStructure 테이블이 필요하나 KickoffTopic과 패턴이 동일. |
+| 3순위 | Screen 8b Technical Narrowing | 8a의 accepted structure blocks를 입력으로 받음. 설문 기반 tech preference 집계가 필요해 survey 데이터 읽기 패턴이 추가됨. |
+
+Screen 9/10은 KF-015 ADR 확정 전까지 착수 불가. 순서를 건너뛸 수 없다.
+
+---
+
+### DB 스키마 확장 필요 사항 (KF-019)
+
+현재 schema.prisma에는 킥오프 결정 관련 테이블이 전무하다. Screen 7~8b 구현을 위해 다음 테이블이 신규 필요하다.
+
+#### 추가 필요 테이블
+
+**KickoffTopic** — Screen 7 결과 저장
+
+```
+KickoffTopic {
+  id            String    PK uuid
+  teamId        String    FK Team (unique — 팀당 1개)
+  suggestions   Json      // AI 생성 제안 목록 (TopicSuggestionsSchema)
+  selectedIndex Int?      // 선택된 제안 인덱스 (null이면 custom)
+  customTopic   String?   // 팀장 직접 입력 (selectedIndex null일 때 사용)
+  confirmedAt   DateTime?
+  confirmedBy   String    FK User (팀장)
+  generationJob String?   // AI job ID (polling 용)
+  createdAt     DateTime
+  updatedAt     DateTime
+}
+```
+
+**KickoffReaction** — Screen 7/8a/8b 멤버 반응 통합 저장
+
+```
+KickoffReaction {
+  id         String   PK uuid
+  teamId     String   FK Team
+  userId     String   FK User
+  screen     String   // 'topic' | 'structure' | 'stack'
+  targetId   String   // 반응 대상 ID (topic suggestion index, block ID, stack option ID)
+  reaction   String   // 'like' | 'concern'
+  createdAt  DateTime
+  updatedAt  DateTime
+
+  @@unique([teamId, userId, screen, targetId])
+}
+```
+
+**KickoffStructure** — Screen 8a 결과 저장
+
+```
+KickoffStructure {
+  id            String    PK uuid
+  teamId        String    FK Team (unique — 팀당 1개)
+  suggestions   Json      // AI 생성 아키텍처 블록 목록 (StructureSuggestionsSchema)
+  acceptedBlocks Json?    // 팀장이 accept한 블록 상태 (overrides 포함)
+  acceptedAt    DateTime?
+  acceptedBy    String    FK User (팀장)
+  generationJob String?
+  createdAt     DateTime
+  updatedAt     DateTime
+}
+```
+
+**KickoffStack** — Screen 8b 결과 저장
+
+```
+KickoffStack {
+  id           String    PK uuid
+  teamId       String    FK Team (unique — 팀당 1개)
+  stackChoices Json      // 블록별 선택된 스택 (StackChoicesSchema)
+  confirmedAt  DateTime?
+  confirmedBy  String    FK User (팀장)
+  createdAt    DateTime
+  updatedAt    DateTime
+}
+```
+
+**MemberExperience** — Screen 8b "이 기술 써봤어요" 배지
+
+```
+MemberExperience {
+  id         String   PK uuid
+  teamId     String   FK Team
+  userId     String   FK User
+  tech       String   // e.g. "React", "NestJS"
+  createdAt  DateTime
+
+  @@unique([teamId, userId, tech])
+}
+```
+
+#### 스키마 확장 원칙 (KF-018 준수)
+
+KF-018에 따라 킥오프 phase는 DB 컬럼이 아닌 서비스 계층 계산이다. 위 테이블의 `confirmedAt / acceptedAt` 존재 여부로 phase를 판단하므로 `Team` 테이블에 `kickoffPhase` 컬럼을 추가하지 않는다.
+
+Phase 계산 확장 (kickoff.service.ts):
+
+```
+idle              — KickoffTopic 없음
+survey_complete   — 모든 leader/member submitted=true
+topic_confirmed   — KickoffTopic.confirmedAt IS NOT NULL
+structure_accepted — KickoffStructure.acceptedAt IS NOT NULL
+stack_confirmed   — KickoffStack.confirmedAt IS NOT NULL
+handoff_accepted  — (KF-015 ADR 이후)
+contract_signed   — (KF-015 ADR 이후)
+meeting_active    — (Screen 11 구현 이후)
+```
+
+---
+
+### AI 호출 아키텍처 (KF-020)
+
+#### 호출 시점 및 패턴
+
+Screen 7~8a의 AI 호출은 모두 "사용자가 화면에 진입할 때 최초 1회" 트리거된다.
+
+| 화면 | 트리거 | 입력 컨텍스트 |
+|------|--------|-------------|
+| Screen 7 | `GET /topic/suggestions` 최초 요청 시 | 팀 전체 SurveyResponse answers (요약) |
+| Screen 8a | `GET /structure/suggestions` 최초 요청 시 | confirmedTopic + 팀 tech profile (s2 answers 집계) |
+| Screen 8b | `GET /stack/options` | 8a acceptedBlocks + 팀 tech preference (s2 집계) |
+
+Screen 8b는 AI 신규 생성이 아닌 acceptedBlocks 기반 옵션 목록 조회다. Claude API 호출 없이 사전 정의된 tech 옵션 매핑 + 설문 선호도 집계로 처리한다.
+
+#### AI Job 처리 패턴
+
+Screen 7/8a는 Claude API 응답 시간이 5~15초 예상이므로 동기 HTTP 응답으로 처리하지 않는다.
+
+```
+클라이언트 → GET /topic/suggestions
+  서비스 계층 확인:
+    KickoffTopic.suggestions 이미 존재 → 즉시 반환 (200)
+    존재하지 않음 → AI job 시작 → { status: 'pending', jobId } 반환 (202)
+
+클라이언트 → 5초 간격 polling:
+  GET /topic/suggestions?jobId=xxx
+    job 완료 → suggestions 반환 (200)
+    job 실패 → { status: 'failed' } 반환 (200, 에러 아님)
+    job 진행 중 → { status: 'pending' } 반환 (200)
+```
+
+polling은 최대 5회(25초). 5회 이후에도 pending이면 클라이언트에서 fallback UI(수동 입력 폼) 전환.
+
+#### 응답 저장 방식
+
+AI 응답은 반드시 `packages/contracts/src/ai/` 스키마로 파싱 후 DB에 저장한다. 파싱 실패 시 최대 3회 재시도. 3회 후 실패 시 job status를 `failed`로 전환하고 fallback을 활성화한다.
+
+```
+// packages/contracts/src/ai/ 에 추가 필요
+topic-suggestions.schema.ts    // TopicSuggestionsSchema
+structure-suggestions.schema.ts // StructureSuggestionsSchema
+```
+
+#### Fallback 정책
+
+| 화면 | Fallback 트리거 | Fallback 내용 |
+|------|----------------|--------------|
+| Screen 7 | AI job failed 또는 5회 polling 초과 | 자유 입력 텍스트 폼 (직접 주제 입력) |
+| Screen 8a | AI job failed 또는 5회 polling 초과 | 사전 정의 기본 블록 세트 + 배너 표시 |
+| Screen 8b | N/A (AI 미사용) | 정상 흐름과 동일 |
+
+---
+
+### Phase Transition 처리 레이어 (KF-021)
+
+#### 결정: NestJS Service 직접 처리 (Event Emitter 미사용)
+
+Screen 7~8b의 phase transition은 EventEmitter 없이 서비스 계층에서 직접 처리한다.
+
+**이유:**
+
+- Phase 전이 트리거는 항상 명시적 leader 액션(confirm, accept)이다. 이벤트 기반 비동기가 필요한 "조건 자동 만족" 케이스가 없다.
+- `survey_complete` 전이는 이미 kickoff.service.ts에서 매 요청마다 계산하는 방식으로 구현돼 있다 (KF-018). 같은 패턴을 유지한다.
+- EventEmitter 도입 시 phase 전이 로직이 서비스 + 리스너에 분산되어 추적이 어려워진다.
+- Screen 9/10에서 외부 write-back(GitHub, Slack)이 필요해지면 그때 EventEmitter 또는 BullMQ job queue 도입을 검토한다 (KF-015 ADR에 포함).
+
+#### Phase 계산 흐름
+
+`KickoffService.getPhase(teamId)` 가 단일 계산 함수로 동작한다.
+
+```
+getPhase(teamId):
+  1. 모든 leader/member submitted? → 아니면 'survey_in_progress'
+  2. KickoffTopic.confirmedAt IS NOT NULL? → 아니면 'survey_complete'
+  3. KickoffStructure.acceptedAt IS NOT NULL? → 아니면 'topic_confirmed'
+  4. KickoffStack.confirmedAt IS NOT NULL? → 아니면 'structure_accepted'
+  5. (이후 handoff/contract는 ADR 이후 추가)
+  → 현재 최고 달성 phase 반환
+```
+
+각 API 엔드포인트 핸들러에서 phase guard를 호출한다:
+
+```
+POST /topic/confirm → getPhase 확인 → survey_complete 이상이어야 진행
+POST /structure/accept → getPhase 확인 → topic_confirmed 이상이어야 진행
+POST /stack/confirm → getPhase 확인 → structure_accepted 이상이어야 진행
+```
+
+---
+
+### Socket.io 도입 시점 (KF-022)
+
+#### 결론: Screen 7에서 최소 범위로 선택적 도입
+
+Screen 7의 "멤버 reaction 실시간 업데이트"는 Socket.io 없이 polling으로 대체 구현 가능하다. 그러나 Screen 7 구현 시 Socket.io를 최소 범위로 먼저 도입해두면 Screen 11(Meeting Hub)의 실시간 협업 요구사항에 재사용 가능하다.
+
+**도입 범위 분석:**
+
+| 기능 | Socket.io 필수 여부 | Polling 대체 가능 여부 |
+|------|--------------------|-----------------------|
+| Screen 7 topic:reaction 실시간 집계 | 아니오 | 가능 (15초 polling) |
+| Screen 7 topic:confirmed 즉각 전파 | 권장 | 가능 (5초 polling, UX 저하) |
+| Screen 8a/8b reaction 집계 | 아니오 | 가능 |
+| Screen 11 meeting:update 실시간 협업 | 예 | 실시간 편집에서 polling은 비실용적 |
+
+**권장 전략 — 2단계 도입:**
+
+1단계 (Screen 7 구현 시): Socket.io 서버 세팅 + `team:{teamId}` room 기반 연결만 구현. `topic:reaction`, `topic:confirmed` 이벤트 발행. 클라이언트는 연결 실패 시 polling fallback 유지.
+
+2단계 (Screen 11 구현 시): `meeting:update` 이벤트로 확장. Screen 7/8 reaction 이벤트도 이 시점에 동일 패턴 통일.
+
+**1단계에서 Socket.io를 건너뛰는 선택지:**
+
+Screen 7 단독 구현 시 Socket.io를 완전히 생략하고 10초 polling만 구현해도 기능적으로 정상 동작한다. Screen 11 전까지 실시간 동시 편집 시나리오가 없기 때문이다. 이 선택 시 `screen-flow.md`의 Socket.io 의존성 항목을 `⚠️ polling fallback`으로 표시한다.
+
+**결정 기준:** Screen 7 구현 시작 전 tf-backend 에이전트와 협의하여 최종 선택. 이 문서는 두 경로 모두 준비된 상태로 유지한다.
+
+---
+
+### ADR 필요 여부 (KF-022)
+
+Screen 7~8b 구현 전 반드시 결정이 필요한 아키텍처 이슈:
+
+| 이슈 | ADR 필요 여부 | 근거 |
+|------|-------------|------|
+| AI Job 처리 패턴 (polling vs webhook vs SSE) | 필요 (ADR-003) | 모든 AI 호출 화면(7, 8a, 5)에 영향. 패턴 통일 필요. |
+| Socket.io 도입 시점 및 범위 | 필요 (ADR-004) | 인프라 의존성 추가. Screen 6의 survey:submitted 이벤트도 소급 적용 여부 결정 필요. |
+| Claude API 프롬프트 관리 위치 | 권장 (ADR-005) | `tooling/prompts/` 관리 vs 서비스 파일 인라인. 재사용 가능 프롬프트가 3개 이상이면 외부화 기준. |
+| KickoffReaction 단일 테이블 vs 화면별 분리 | 기록 권장 | decisions.md KF-019에 포함 가능. 규모 작아 독립 ADR 불필요. |
+
+**즉시 작성 필요한 ADR:**
+
+- **ADR-003-ai-job-polling-pattern.md**: Screen 7 구현 착수 전 확정 필요. polling 간격, 최대 시도 횟수, fallback 조건을 명시.
+- **ADR-004-socketio-introduction.md**: Screen 7 착수 전 "도입 vs 생략" 결정 필요. 생략 결정 시에도 ADR로 기록.
+
+---
+
+### 역할별 분기 요약 (Screen 7~8b)
+
+| 액션 | leader | member | observer |
+|------|--------|--------|----------|
+| AI 제안 목록 조회 | rw | rw | r |
+| Topic/Block 반응 | yes | yes | 없음 |
+| Topic 확정 (confirm) | yes | 없음 | 없음 |
+| 커스텀 Topic 입력 | yes | 없음 | 없음 |
+| Structure block accept/override | yes | 없음 | 없음 |
+| Stack confirm | yes | 없음 | 없음 |
+| "이 기술 써봤어요" 배지 | 없음 | yes | 없음 |
+| Phase lock 후 화면 진입 | read-only | read-only | read-only |
+
+Observer는 Screen 7/8a/8b 진입 가능하나 모든 write 액션이 비활성화된다. 별도 redirect 없음.
+
+---
+
+### 에러 상태 및 가드 정리 (Screen 7~8b)
+
+#### Phase Guard (서버 + 클라이언트 이중 적용)
+
+서버: 각 write 엔드포인트에서 phase 확인 후 조건 미달 시 `409 Conflict` 반환.
+클라이언트: 페이지 진입 시 `GET /kickoff/phase` 응답 기반으로 redirect 또는 read-only 모드 전환.
+
+| 화면 | 진입 최소 Phase | 미달 시 redirect |
+|------|----------------|----------------|
+| Screen 7 | `survey_complete` | `/team/[teamId]/dashboard` |
+| Screen 8a | `topic_confirmed` | `/team/[teamId]/topic` (read-only 표시 후) |
+| Screen 8b | `structure_accepted` | `/team/[teamId]/structure` (read-only 표시 후) |
+
+Phase lock 후 이전 화면 진입 시 redirect가 아닌 read-only 모드 렌더링을 선택한다. 팀 전체가 결정 이력을 돌아볼 수 있어야 하기 때문이다.
+
+#### 주요 에러 상태
+
+| 상황 | 처리 방식 |
+|------|---------|
+| AI pending 5회 초과 | fallback UI 전환 + "AI 분석 실패" 배너 |
+| non-leader가 confirm/accept POST 시도 | 서버 403, 클라이언트 버튼 비활성화로 사전 차단 |
+| 이미 confirmed된 topic 재확정 시도 | 서버 409, 클라이언트 이미 lock 상태 표시 |
+| AI 응답 스키마 파싱 실패 3회 | job status `failed` 전환, fallback 활성화 |
+| 팀원 미반응 상태에서 leader confirm | 허용, "아직 반응 안 한 팀원이 있어요" 경고 toast만 표시 |
+
+---
+
+### API 엔드포인트 목록 (Screen 7~8b 신규)
+
+모두 `apps/api/src/` 내 신규 모듈로 구현. 각 모듈은 독립 NestJS module.
+
+```
+// Screen 7 — Topic
+GET  /api/teams/:teamId/topic/suggestions    — AI 제안 조회 (polling 포함)
+POST /api/teams/:teamId/topic/react          — 멤버 반응 저장
+POST /api/teams/:teamId/topic/confirm        — 팀장 topic 확정 (phase 전이)
+
+// Screen 8a — Structure
+GET  /api/teams/:teamId/structure/suggestions — AI 아키텍처 블록 조회
+POST /api/teams/:teamId/structure/react       — 멤버 반응 저장
+POST /api/teams/:teamId/structure/accept      — 팀장 블록 accept (phase 전이)
+
+// Screen 8b — Stack
+GET  /api/teams/:teamId/stack/options         — 블록별 스택 옵션 + 팀 선호도
+POST /api/teams/:teamId/stack/experience      — 멤버 경험 배지 토글
+POST /api/teams/:teamId/stack/confirm         — 팀장 스택 확정 (phase 전이)
+```
+
+Phase 조회는 기존 `GET /api/teams/:teamId/kickoff/status` 를 확장하거나 `GET /api/teams/:teamId/kickoff/phase` 전용 엔드포인트로 분리한다.
+
+---
+
+### Frontend 구현 파일 구조 (Screen 7~8b)
+
+```
+apps/web/app/team/[teamId]/
+  topic/
+    page.tsx               — Server Component, phase guard + data fetch
+    topic-client.tsx       — Client Component, AI 제안 목록 + reaction UI
+    actions.ts             — Server Actions: reactTopic, confirmTopic
+  structure/
+    page.tsx
+    structure-client.tsx
+    actions.ts
+  stack/
+    page.tsx
+    stack-client.tsx
+    actions.ts
+```
+
+page.tsx는 Server Component로 phase 검증 및 초기 데이터 fetch를 담당한다. AI pending 상태(`status: 'pending'`)이면 client 컴포넌트에 pending prop을 전달하고, 클라이언트에서 polling을 시작한다.
+
+---
+
+### 구현 시작 전 체크리스트
+
+다음 항목이 완료된 후 Screen 7 구현 착수 가능하다:
+
+- [ ] ADR-003 (AI job polling pattern) 작성 및 결정
+- [ ] ADR-004 (Socket.io 도입 여부) 작성 및 결정
+- [ ] `packages/contracts/src/ai/topic-suggestions.schema.ts` 스키마 초안
+- [ ] `packages/contracts/src/ai/structure-suggestions.schema.ts` 스키마 초안
+- [ ] Prisma 마이그레이션 파일 (KickoffTopic, KickoffReaction, KickoffStructure, KickoffStack, MemberExperience)
+- [ ] `tooling/prompts/` 에 Screen 7, 8a 프롬프트 파일 초안 (내용 미확정이어도 파일 위치 확보)
+- [ ] kickoff.service.ts `getPhase` 함수 확장 (topic_confirmed, structure_accepted, stack_confirmed 분기 추가)
