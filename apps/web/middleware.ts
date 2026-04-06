@@ -17,7 +17,12 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
 
-  if (isProtected && !req.auth) {
+  // dev-preview?screen=login 은 인증 없이 접근 허용 (캡처용)
+  const isDevPreviewPublic =
+    pathname === '/dev-preview' &&
+    req.nextUrl.searchParams.get('screen') === 'login';
+
+  if (isProtected && !req.auth && !isDevPreviewPublic) {
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);

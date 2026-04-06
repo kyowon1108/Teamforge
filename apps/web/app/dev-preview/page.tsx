@@ -10,6 +10,9 @@ import SurveyClient from '../team/[teamId]/survey/survey-client';
 import ResultClient from '../team/[teamId]/result/result-client';
 import KickoffDashboardClient from '../team/[teamId]/dashboard/kickoff-dashboard-client';
 import AppHeader from '@/components/layout/AppHeader';
+import { Globe, GitBranch } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const MOCK_USER_NAME = '이교원';
 
@@ -43,6 +46,82 @@ export default function DevPreviewPage({
   }
 
   const screen = searchParams.screen ?? 'dashboard-empty';
+
+  if (screen === 'login') {
+    return (
+      <main
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ background: 'var(--tf-surface-background)' }}
+      >
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1
+              className="text-3xl font-bold tracking-tight mb-2"
+              style={{ color: 'var(--tf-text-primary)' }}
+            >
+              TeamForge
+            </h1>
+            <p className="text-sm" style={{ color: 'var(--tf-text-muted)' }}>
+              팀의 방향을 함께 만드는 킥오프 플랫폼
+            </p>
+          </div>
+          <Card style={{ borderColor: 'var(--tf-border-subtle)' }}>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl text-center">로그인</CardTitle>
+              <CardDescription className="text-center">
+                소셜 계정으로 간편하게 시작하세요
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <button
+                type="button"
+                className="w-full flex items-center justify-center gap-3 h-11 rounded-md border font-medium text-sm"
+                style={{
+                  minHeight: '44px',
+                  borderColor: 'var(--tf-border-subtle)',
+                  background: 'var(--tf-surface-card)',
+                  color: 'var(--tf-text-primary)',
+                }}
+              >
+                <Globe size={18} />
+                Google로 계속하기
+              </button>
+              <button
+                type="button"
+                className="w-full flex items-center justify-center gap-3 h-11 rounded-md border font-medium text-sm"
+                style={{
+                  minHeight: '44px',
+                  borderColor: 'var(--tf-border-subtle)',
+                  background: 'var(--tf-surface-card)',
+                  color: 'var(--tf-text-primary)',
+                }}
+              >
+                <GitBranch size={18} />
+                GitHub으로 계속하기
+              </button>
+              <div
+                className="w-full flex items-center justify-center gap-3 h-11 rounded-md font-medium text-sm opacity-50 cursor-not-allowed"
+                style={{
+                  minHeight: '44px',
+                  background: 'var(--tf-kakao-yellow)',
+                  color: 'var(--tf-kakao-text)',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.695 1.593 5.065 4.01 6.515l-1.02 3.795a.375.375 0 0 0 .547.42l4.428-2.94A11.76 11.76 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z" />
+                </svg>
+                카카오로 계속하기
+                <Badge variant="secondary" className="ml-1 text-xs">준비 중</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <p className="text-center text-xs mt-6" style={{ color: 'var(--tf-text-muted)' }}>
+            로그인하면 서비스 이용약관 및 개인정보처리방침에 동의하게 됩니다
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   if (screen === 'survey' || screen?.startsWith('survey-s')) {
     const section = screen.startsWith('survey-s') ? parseInt(screen.replace('survey-s', ''), 10) : 1;
