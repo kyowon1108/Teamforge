@@ -409,9 +409,9 @@ Scoring rules:
 - ⚠️ Socket.io deferred to Screen 11 (ADR-004). Using 10-second polling fallback until then.
 
 **API dependencies:**
-- `GET /api/teams/:teamId/topic/suggestions` — AI-generated topic list (async job, poll if pending)
-- `POST /api/teams/:teamId/topic/react` — save member reaction
-- `POST /api/teams/:teamId/topic/confirm` — leader confirms topic (advances phase)
+- `GET /api/teams/:teamId/topic` — AI-generated topic list + job status (returns 202 if job pending, 200 if done/failed). Triggers job creation on first call if no cached result exists.
+- `POST /api/teams/:teamId/topic/react` — save or update member reaction (upsert by topicId + userId)
+- `POST /api/teams/:teamId/topic/confirm` — leader confirms topic, transitions phase to `topic_confirmed`. Body may include `customTopic` for leader-entered custom topic.
 
 **Role differences:**
 
@@ -422,10 +422,20 @@ Scoring rules:
 | Confirm topic | yes | no | no |
 | Enter custom topic | yes | no | no |
 
+**Phase lock behavior (topic_confirmed):**
+- Once confirmed, topic cards render read-only. Reaction buttons hidden. Confirmed badge shown.
+- Re-editing after confirmation is not implemented in this phase (KF-023).
+- CTA changes to "다음: 아키텍처 설계" → `/team/[teamId]/structure`.
+- Non-leader clients detect phase change via 10-second polling (ADR-004).
+
+**DB tables:** `KickoffTopicJob`, `KickoffTopic`, `KickoffReaction` (KF-019)
+
 **Error states:**
-- AI topic generation pending (>15s) → show "AI가 팀 프로필을 분석하고 있어요" loading screen, poll every 5s up to 5 attempts
-- AI generation failure → show manual topic entry form fallback
-- Leader confirms before all members reacted → allowed; show "아직 반응하지 않은 팀원이 있어요" warning, not a blocker
+- AI topic generation pending → show "AI가 팀 프로필을 분석하고 있어요" loading screen. Poll `GET /topic` every 5s, up to 5 attempts (ADR-003).
+- AI generation failure (`status: 'failed'`) or 5 poll attempts exhausted → activate fallback: manual topic entry form (leader only). Members see "주제 분석에 실패했어요. 팀장이 직접 입력하고 있어요."
+- Leader confirms before all members reacted → allowed; show "아직 반응하지 않은 팀원이 있어요" warning, not a blocker.
+- React attempt after topic is confirmed → 409 from API; client shows "주제가 이미 확정되었습니다." and disables reaction buttons.
+- New member joins after job completed → if phase still `survey_complete`, re-evaluate canProceed in Screen 6. Screen 7 access re-blocked until new member submits survey (KF-023 scope).
 
 ---
 

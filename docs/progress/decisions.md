@@ -222,6 +222,18 @@ This file keeps the currently effective working decisions in a compact format.
 
 **일지:** screen-flow.md Screen 7~8b 설계 가이드 (2026-04-06)
 
+## KF-023 — topic_confirmed 이후 주제 재편집은 현 단계 불허, 별도 ADR 선행
+
+**결론:** `topic_confirmed` phase 이후 리더의 주제 재편집 기능을 현 Screen 7 구현 범위에 포함하지 않는다. 확정 후 화면은 read-only로 전환하고 재편집 버튼을 노출하지 않는다. 재편집 허용 시 하위 phase(structure, stack) 데이터 초기화 정책 전체가 미설계 상태이므로 별도 ADR 확정 전까지 구현을 차단한다.
+
+**이유:** phase 역행 흐름(confirmed → 미확정 → 재선택)은 structure/stack/handoff 데이터의 캐스케이드 초기화 정책을 수반한다. 이 정책 없이 재편집을 허용하면 structure 데이터가 이전 주제 기반으로 오염된 채 남는다.
+
+**차단 항목:** Screen 7 확정 후 재편집 버튼, phase 역행 API
+
+**영향 범위:** `apps/api/src/topic/topic.service.ts`, `apps/web/app/team/[teamId]/topic/`
+
+**일지:** docs/architecture/screen7-design-review.md (2026-04-06)
+
 ## KF-022 — Socket.io 도입은 Screen 7 착수 전 ADR-004로 결정, ADR 전까지 보류
 
 **결론:** Socket.io를 Screen 7에 최소 범위로 도입할지, Screen 11까지 미룰지는 ADR-004로 공식 결정한다. Screen 7의 reaction 실시간성은 polling으로 대체 가능하나, Screen 7 구현 시 도입해두면 Screen 11 실시간 협업에 재사용 가능하다. ADR-004 확정 전까지 Socket.io 관련 코드를 작성하지 않는다.
