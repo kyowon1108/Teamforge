@@ -51,6 +51,9 @@
     --tf-status-error:         #D32F2F;
     --tf-status-info:          #1565C0;
 
+    /* ── Layout ──────────────────────────────────────────────── */
+    --tf-app-header-height:    53px;
+
     /* ── Safe Area (모바일) ───────────────────────────────────── */
     --safe-area-inset-top:     env(safe-area-inset-top, 0px);
     --safe-area-inset-bottom:  env(safe-area-inset-bottom, 0px);

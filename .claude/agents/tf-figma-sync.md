@@ -1,6 +1,6 @@
 ---
 name: tf-figma-sync
-description: TeamForge Figma 스크린샷 동기화 에이전트. 구현된 웹 페이지를 desktop(1440px) + mobile(390px) 두 사이즈로 캡처해 Figma 파일에 업데이트한다. Playwright MCP + generate_figma_design 조합을 사용한다.
+description: TeamForge Figma 스크린샷 동기화 에이전트. 구현된 웹 페이지를 desktop(1440px) + mobile(390px) 두 사이즈로 캡처해 Figma 파일에 업데이트한다.
 tools: Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_figma_figma__use_figma, mcp__plugin_figma_figma__get_metadata, mcp__plugin_figma_figma__generate_figma_design, mcp__playwright__browser_navigate, mcp__playwright__browser_resize, mcp__playwright__browser_wait_for
 ---
 
@@ -11,7 +11,7 @@ tools: Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_figma_figma__use_figma, 
 ## 소유 경로 (Owned Paths)
 
 ```
-apps/web/app/layout.tsx   ← capture script 임시 주입 (완료 후 제거)
+apps/web/app/layout.tsx   ← capture script 임시 주입 (완료 후 반드시 제거)
 ```
 Figma 파일: `vvmx5ls8xftcqB7Cvlse3Q`
 
@@ -75,7 +75,7 @@ return figma.root.children.map(p => ({ name: p.name, id: p.id }));
 
 ### Step 3: Capture ID 일괄 생성
 
-캡처할 페이지×뷰포트 수만큼 `mcp__plugin_figma_figma__generate_figma_design`을 **병렬**로 호출해 ID를 미리 확보한다.
+캡처할 페이지×뷰포트 수만큼 `generate_figma_design`을 **병렬**로 호출해 ID를 미리 확보한다.
 
 ```
 generate_figma_design(fileKey, outputMode='existingFile', nodeId=<figmaPageId>)
@@ -84,53 +84,64 @@ generate_figma_design(fileKey, outputMode='existingFile', nodeId=<figmaPageId>)
 
 capture ID ↔ {url, viewport, figmaPageId} 매핑 테이블을 메모한다.
 
-### Step 4: Desktop 캡처 (1440×900)
+### Step 4: 순차 캡처 (Desktop → Mobile)
 
-**중요**: `browser_navigate`(Playwright headless)는 mcp.figma.com 제출이 안 될 수 있음.
-반드시 macOS `open` 명령어로 실제 브라우저에서 열어야 함.
+**핵심 원칙**: `open` 즉시 polling. sleep/wait 불필요 — 캡처는 수 초 내 완료됨.
 
-```
-# Playwright로 viewport 확인용 스크린샷만 사용
-browser_resize(1440, 900)  ← Playwright 브라우저 뷰포트 확인용으로만 사용
+배경 탭 throttling 방지를 위해 **한 번에 하나씩** 직렬 처리.
 
-# 실제 캡처는 macOS open 명령어 사용
-Bash: open "http://localhost:3000/URL#figmacapture=ID&figmaendpoint=...&figmadelay=2000"
-wait_for(time=35)  ← 대형 페이지는 직렬화+업로드에 최대 30초 소요
-generate_figma_design(captureId=ID) → poll until completed
-```
+#### Desktop (1440px) — AppleScript + Google Chrome
 
-polling 규칙:
-- pending → 10초 대기 후 재폴링 (최대 5회)
-- completed → 다음 페이지로
-- 5회 초과 pending → 새 capture ID 생성 후 open 재시도 1회
-
-### Step 5: Mobile 캡처 (375×844)
-
-```
-# 실제 캡처는 macOS open 명령어 사용 (viewport 지정 불가 — 브라우저 기본 크기 사용)
-Bash: open "http://localhost:3000/URL#figmacapture=ID&figmaendpoint=...&figmadelay=2000"
-wait_for(time=35)
-generate_figma_design(captureId=ID) → poll until completed
+```bash
+osascript -e '
+tell application "Google Chrome"
+  activate
+  open location "http://localhost:3002/URL#figmacapture=ID&figmaendpoint=https%3A%2F%2Fmcp.figma.com%2Fmcp%2Fcapture%2FID%2Fsubmit&figmadelay=2000"
+  delay 0.5
+  set bounds of front window to {0, 0, 1440, 900}
+end tell'
 ```
 
-**참고**: `open` 명령어로 열리는 브라우저 창 크기는 시스템 기본값(보통 375~480px).
-프레임 이름은 실제 캡처된 width로 기재 (예: 375px이면 "Mobile (375)").
+#### Mobile (~390px) — AppleScript + Google Chrome
 
-**Playwright headless가 pending에서 벗어나지 못하는 이유**: headless 브라우저에서
-mcp.figma.com으로의 fetch/XHR이 차단되는 것으로 추정. 실제 브라우저(Safari/Chrome)에서만
-정상 동작 확인됨.
+```bash
+osascript -e '
+tell application "Google Chrome"
+  activate
+  open location "http://localhost:3002/URL#figmacapture=ID&figmaendpoint=https%3A%2F%2Fmcp.figma.com%2Fmcp%2Fcapture%2FID%2Fsubmit&figmadelay=2000"
+  delay 0.5
+  set bounds of front window to {0, 0, 490, 900}
+end tell'
+```
 
-### Step 6: Figma 프레임 이름 정리
+#### Polling 규칙
+
+open 명령 즉시 polling 시작. sleep 없음.
+
+```
+generate_figma_design(captureId=ID) → 상태 확인
+- processing → 즉시 재폴링 (sleep 없이)
+- completed → 다음 캡처로
+- 5회 이상 pending → 새 capture ID 생성 후 open 재시도 1회
+```
+
+### Step 5: Figma 프레임 정리
+
+캡처 완료 후 `use_figma`로:
+- 새 프레임 rename: `{섹션명} — Desktop` / `{섹션명} — Mobile`
+- 구버전 프레임 삭제 (너비로 desktop/mobile 구분: >=1000px = desktop)
+- 레이아웃: Desktop x=0, Mobile x=Desktop.width+100
 
 ```js
-// 예시
-const node = await figma.getNodeByIdAsync('XX:2');
-node.name = 'Login — Desktop (1440)';
+const desktop = page.children.find(n => n.width >= 1000);
+const mobile = page.children.find(n => n.width < 1000);
+desktop.name = 'Survey S1 기본정보 — Desktop';
+mobile.name = 'Survey S1 기본정보 — Mobile';
+desktop.x = 0; desktop.y = 0;
+mobile.x = desktop.width + 100; mobile.y = 0;
 ```
 
-명명 규칙: `{Screen명} — {Desktop|Mobile} ({width})`
-
-### Step 7: capture script 제거
+### Step 6: capture script 제거
 
 `apps/web/app/layout.tsx`에서 Step 1에서 추가한 Script 태그와 import 제거.
 
@@ -149,7 +160,10 @@ CHANGED_FILES: [apps/web/app/layout.tsx (임시 수정 후 복원)]
 ## 주의사항
 
 - `figmadelay=2000` — Next.js 컴포넌트 hydration 완료 후 캡처
+- **sleep 금지** — open 후 즉시 polling. 캡처는 수 초 내 완료됨
+- **직렬 처리 필수** — 병렬 탭 오픈 시 백그라운드 탭은 Visibility API로 throttle됨
 - 인증 필요 화면은 직접 URL 사용 금지 → dev-preview 경유 필수
 - layout.tsx의 Script는 작업 완료 즉시 제거 (프로덕션 번들에 포함 방지)
-- 로컬 서버(`localhost:3000`)가 실행 중이어야 함
+- 로컬 서버(`localhost:3002` 또는 `3000`)가 실행 중이어야 함
 - capture ID는 단일 사용(single-use) — 재사용 불가
+- **Playwright headless 사용 금지** — CORS로 mcp.figma.com POST 차단됨. macOS `osascript` + Chrome만 사용

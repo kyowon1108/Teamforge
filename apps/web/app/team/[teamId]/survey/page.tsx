@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { apiFetch } from '@/lib/api-client';
 import SurveyClient from './survey-client';
+import AppHeader from '@/components/layout/AppHeader';
 
 interface SurveyDraftResponse {
   answers: Record<string, unknown>;
@@ -49,11 +50,16 @@ export default async function SurveyPage({ params }: PageProps) {
     redirect(`/team/${teamId}/result`);
   }
 
+  const userName = session.user?.name ?? session.user?.email ?? '사용자';
+
   return (
-    <SurveyClient
-      teamId={teamId}
-      initialAnswers={initialAnswers}
-      submitted={submitted}
-    />
+    <div>
+      <AppHeader userName={userName} />
+      <SurveyClient
+        teamId={teamId}
+        initialAnswers={initialAnswers}
+        submitted={submitted}
+      />
+    </div>
   );
 }

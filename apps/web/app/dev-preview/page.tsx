@@ -7,6 +7,9 @@ import CreateTeamClient from '../team/create/create-team-client';
 import JoinTeamClient from '../team/join/join-team-client';
 import DashboardClient from '../dashboard/dashboard-client';
 import SurveyClient from '../team/[teamId]/survey/survey-client';
+import AppHeader from '@/components/layout/AppHeader';
+
+const MOCK_USER_NAME = '이교원';
 
 const MOCK_TEAMS_EMPTY: [] = [];
 
@@ -39,46 +42,58 @@ export default function DevPreviewPage({
 
   const screen = searchParams.screen ?? 'dashboard-empty';
 
-  if (screen === 'survey') {
+  if (screen === 'survey' || screen?.startsWith('survey-s')) {
+    const section = screen.startsWith('survey-s') ? parseInt(screen.replace('survey-s', ''), 10) : 1;
     return (
-      <SurveyClient
-        teamId="mock-team-001"
-        initialAnswers={{}}
-        submitted={false}
-      />
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <SurveyClient
+          teamId="mock-team-001"
+          initialAnswers={{}}
+          submitted={false}
+          initialSection={section}
+        />
+      </div>
     );
   }
 
-  const centered = (
-    <main
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'var(--tf-surface-background)' }}
-    >
-      {screen === 'role-select' && <RoleSelectClient />}
-      {screen === 'team-create' && <CreateTeamClient />}
-      {screen === 'team-join' && <JoinTeamClient />}
-    </main>
-  );
-
   if (screen === 'dashboard-empty') {
     return (
-      <DashboardClient
-        userName="이교원"
-        teams={MOCK_TEAMS_EMPTY}
-        fetchError={null}
-      />
+      <div className="min-h-screen" style={{ background: 'var(--tf-surface-background)' }}>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <DashboardClient
+          userName={MOCK_USER_NAME}
+          teams={MOCK_TEAMS_EMPTY}
+          fetchError={null}
+        />
+      </div>
     );
   }
 
   if (screen === 'dashboard-teams') {
     return (
-      <DashboardClient
-        userName="이교원"
-        teams={MOCK_TEAMS}
-        fetchError={null}
-      />
+      <div className="min-h-screen" style={{ background: 'var(--tf-surface-background)' }}>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <DashboardClient
+          userName={MOCK_USER_NAME}
+          teams={MOCK_TEAMS}
+          fetchError={null}
+        />
+      </div>
     );
   }
 
-  return centered;
+  return (
+    <div className="min-h-screen font-sans" style={{ background: 'var(--tf-surface-background)' }}>
+      <AppHeader userName={MOCK_USER_NAME} />
+      <main
+        className="flex items-center justify-center p-4"
+        style={{ minHeight: 'calc(100vh - var(--tf-app-header-height))' }}
+      >
+        {screen === 'role-select' && <RoleSelectClient />}
+        {screen === 'team-create' && <CreateTeamClient />}
+        {screen === 'team-join' && <JoinTeamClient />}
+      </main>
+    </div>
+  );
 }

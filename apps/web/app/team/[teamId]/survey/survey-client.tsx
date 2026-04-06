@@ -24,6 +24,7 @@ interface Props {
   teamId: string;
   initialAnswers: Record<string, unknown>;
   submitted: boolean;
+  initialSection?: number;
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -56,8 +57,8 @@ function isSectionValid(section: number, answers: Record<string, unknown>): bool
   }
 }
 
-export default function SurveyClient({ teamId, initialAnswers }: Props) {
-  const [currentSection, setCurrentSection] = useState(1);
+export default function SurveyClient({ teamId, initialAnswers, initialSection = 1 }: Props) {
+  const [currentSection, setCurrentSection] = useState(initialSection);
   const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [submitting, setSubmitting] = useState(false);
@@ -127,7 +128,7 @@ export default function SurveyClient({ teamId, initialAnswers }: Props) {
     <div className="min-h-screen" style={{ background: 'var(--tf-bg-layer-alt)' }}>
       {/* Sticky header — progress bar */}
       <div
-        className="sticky top-0 z-10 border-b"
+        className="sticky top-[var(--tf-app-header-height)] z-10 border-b"
         style={{
           background: 'var(--tf-bg-layer-default)',
           borderColor: 'var(--tf-stroke-neutral)',

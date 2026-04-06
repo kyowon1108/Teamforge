@@ -10,6 +10,7 @@ const PROTECTED_PATHS = [
   '/meeting',
   '/changes',
   '/settings',
+  '/dev-preview',
 ];
 
 export default auth((req) => {

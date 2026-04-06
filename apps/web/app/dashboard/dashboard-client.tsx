@@ -1,9 +1,7 @@
 'use client';
 
-import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
-import { Users, LogOut, Plus, KeyRound, ArrowRight, Building2 } from 'lucide-react';
+import { Users, Plus, KeyRound, ArrowRight, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,48 +27,9 @@ const ROLE_COLOR_VAR: Record<TeamSummary['role'], string> = {
 
 export default function DashboardClient({ userName, teams, fetchError }: DashboardClientProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  function handleSignOut() {
-    startTransition(async () => {
-      await signOut({ callbackUrl: '/login' });
-    });
-  }
 
   return (
-    <div
-      className="min-h-screen font-sans"
-      style={{ background: 'var(--tf-surface-background)' }}
-    >
-      {/* 헤더 */}
-      <header
-        className="sticky top-0 z-10 border-b px-4 py-3 flex items-center justify-between"
-        style={{
-          background: 'var(--tf-surface-card)',
-          borderColor: 'var(--tf-border-subtle)',
-        }}
-      >
-        <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--tf-text-primary)' }}>
-          TeamForge
-        </span>
-        <div className="flex items-center gap-3">
-          <span className="text-sm hidden sm:block" style={{ color: 'var(--tf-text-muted)' }}>
-            {userName}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            disabled={isPending}
-            aria-label="로그아웃"
-            style={{ minHeight: '44px' }}
-          >
-            <LogOut size={16} />
-            <span className="ml-1.5 hidden sm:inline">로그아웃</span>
-          </Button>
-        </div>
-      </header>
-
+    <div className="font-sans">
       <main className="mx-auto max-w-2xl px-4 py-8 flex flex-col gap-8">
         {/* 인사 */}
         <section>
