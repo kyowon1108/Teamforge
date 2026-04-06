@@ -17,10 +17,16 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
 
-  // dev-preview?screen=login 은 인증 없이 접근 허용 (캡처용)
+  // dev-preview 캡처용 화면은 인증 없이 접근 허용
+  const devPreviewPublicScreens = [
+    'login',
+    'kickoff-topic-loading',
+    'kickoff-topic-leader',
+    'kickoff-topic-member',
+  ];
   const isDevPreviewPublic =
     pathname === '/dev-preview' &&
-    req.nextUrl.searchParams.get('screen') === 'login';
+    devPreviewPublicScreens.includes(req.nextUrl.searchParams.get('screen') ?? '');
 
   if (isProtected && !req.auth && !isDevPreviewPublic) {
     const loginUrl = new URL('/login', req.url);

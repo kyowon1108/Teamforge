@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { KickoffService } from './kickoff.service';
-import { KickoffController } from './kickoff.controller';
+import { KickoffController, TopicController } from './kickoff.controller';
 
 @Module({
-  controllers: [KickoffController],
+  controllers: [KickoffController, TopicController],
   providers: [KickoffService],
   exports: [KickoffService],
 })

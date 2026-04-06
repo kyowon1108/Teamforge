@@ -126,7 +126,7 @@ export default function KickoffDashboardClient({ teamId, data }: Props) {
   const isPhaseComplete = phase === 'survey_complete';
 
   function handleTopicClick() {
-    // Screen 7 미구현 — 현재는 비활성 처리 (canProceed=true여도 버튼 disabled)
+    router.push(`/team/${teamId}/topic`);
   }
 
   return (
@@ -335,23 +335,32 @@ export default function KickoffDashboardClient({ teamId, data }: Props) {
             </p>
           )}
 
-          {/* Screen 7 미구현 — 버튼 비활성, 준비 중 안내 */}
           <button
-            disabled
-            className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-sm font-semibold"
-            style={{
-              background: 'var(--tf-stroke-neutral)',
-              color: 'var(--tf-fg-muted)',
-              cursor: 'not-allowed',
-              opacity: 0.6,
-            }}
+            onClick={canProceed ? handleTopicClick : undefined}
+            disabled={!canProceed}
+            className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-sm font-semibold transition-opacity"
+            style={
+              canProceed
+                ? {
+                    background: 'var(--tf-bg-brand-solid)',
+                    color: 'white',
+                  }
+                : {
+                    background: 'var(--tf-stroke-neutral)',
+                    color: 'var(--tf-fg-muted)',
+                    cursor: 'not-allowed',
+                    opacity: 0.6,
+                  }
+            }
           >
             킥오프 주제 결정
             <ChevronRight className="w-4 h-4" />
           </button>
-          <p className="text-xs text-center mt-2" style={{ color: 'var(--tf-fg-subtle)' }}>
-            곧 오픈됩니다
-          </p>
+          {!canProceed && (
+            <p className="text-xs text-center mt-2" style={{ color: 'var(--tf-fg-muted)' }}>
+              전원 설문 완료 후 활성화됩니다
+            </p>
+          )}
         </div>
       </div>
     </div>

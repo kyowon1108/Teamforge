@@ -14,6 +14,13 @@ enum TeamRole {
   observer
 }
 
+enum TopicJobStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
 model User {
   id              String           @id @default(uuid())
   email           String           @unique
@@ -64,14 +71,17 @@ model VerificationToken {
 }
 
 model Team {
-  id              String           @id @default(uuid())
-  name            String
-  inviteCode      String           @unique
-  description     String?
-  memberships     TeamMembership[]
-  surveyResponses SurveyResponse[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id               String           @id @default(uuid())
+  name             String
+  inviteCode       String           @unique
+  description      String?
+  memberships      TeamMembership[]
+  surveyResponses  SurveyResponse[]
+  kickoffTopicJob  KickoffTopicJob?
+  kickoffTopics    KickoffTopic[]
+  kickoffReactions KickoffReaction[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 }
 
 model TeamMembership {
@@ -104,4 +114,44 @@ model SurveyResponse {
 
   @@unique([teamId, userId])
   @@index([teamId, submitted])
+}
+
+model KickoffTopicJob {
+  id        String         @id @default(cuid())
+  teamId    String         @unique
+  status    TopicJobStatus @default(pending)
+  errorMsg  String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  team      Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  topics    KickoffTopic[]
+}
+
+model KickoffTopic {
+  id          String            @id @default(cuid())
+  teamId      String
+  jobId       String
+  title       String
+  rationale   String
+  tags        String[]
+  aiGenerated Boolean           @default(true)
+  confirmedAt DateTime?
+  createdAt   DateTime          @default(now())
+  team        Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  job         KickoffTopicJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reactions   KickoffReaction[]
+}
+
+model KickoffReaction {
+  id        String       @id @default(cuid())
+  topicId   String
+  teamId    String
+  userId    String
+  reaction  String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  topic     KickoffTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  team      Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, userId])
 }

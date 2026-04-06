@@ -245,3 +245,13 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `apps/api/src/main.ts` (Socket.io 서버 설정), `apps/api/src/` 실시간 게이트웨이 모듈, `apps/web/hooks/` 클라이언트 소켓 훅
 
 **일지:** screen-flow.md Screen 7~8b 설계 가이드 (2026-04-06)
+
+## KF-024 — OpenAI GPT-4o SDK 도입 (Screen 7 AI 주제 제안)
+
+**결론:** `openai` npm 패키지를 `apps/api`에 추가하고 `process.env.OPENAI_API_KEY` 환경변수로 인증한다. Screen 7 주제 제안에 `gpt-4o` 모델을 JSON 모드로 사용한다. AI 응답은 `TopicSuggestionsSchema` Zod 스키마로 파싱·검증하며, 실패 3회 시 job을 FAILED 처리한다.
+
+**이유:** 팀 설문 데이터(6섹션 answers)를 분석해 킥오프 주제 3~5개를 생성하는 작업은 GPT-4o JSON 모드가 가장 직접적으로 지원한다. Claude API는 Screen 8a/8b 구조/스택 제안에서 재검토한다. SDK 방식 도입으로 스트리밍, 재시도, 타임아웃 설정을 표준 인터페이스로 관리한다.
+
+**영향 범위:** `apps/api/package.json`, `apps/api/src/topic/topic.service.ts`, `packages/contracts/src/ai/topic-suggestions.schema.ts`, `OPENAI_API_KEY` 환경변수
+
+**일지:** [260407_01](./260407_01-screen7-topic-decision.md)

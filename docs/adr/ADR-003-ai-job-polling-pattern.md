@@ -1,7 +1,8 @@
 # ADR-003: AI Job Processing Uses Polling Pattern (202 / 200)
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-04-06
+- Accepted: 2026-04-07
 - Relates to: KF-020, Screen 7 Topic Decision, Screen 8a System Framing
 
 ## Context

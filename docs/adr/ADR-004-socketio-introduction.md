@@ -1,7 +1,8 @@
 # ADR-004: Socket.io Introduction Timing and Scope
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-04-06
+- Accepted: 2026-04-07
 - Relates to: KF-022, Screen 7 Topic Decision, Screen 11 Meeting Hub
 
 ## Context

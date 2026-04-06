@@ -9,10 +9,12 @@ import DashboardClient from '../dashboard/dashboard-client';
 import SurveyClient from '../team/[teamId]/survey/survey-client';
 import ResultClient from '../team/[teamId]/result/result-client';
 import KickoffDashboardClient from '../team/[teamId]/dashboard/kickoff-dashboard-client';
+import TopicDecisionClient from '../team/[teamId]/topic/topic-client';
 import AppHeader from '@/components/layout/AppHeader';
 import { Globe, GitBranch } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import type { TopicItem } from '../team/[teamId]/topic/topic-client';
 
 const MOCK_USER_NAME = '이교원';
 
@@ -198,6 +200,84 @@ export default function DevPreviewPage({
             ],
             myRole: 'leader',
           }}
+        />
+      </div>
+    );
+  }
+
+  const MOCK_TOPICS: TopicItem[] = [
+    {
+      id: 'topic-001',
+      title: '팀 협업 도구 개선 플랫폼',
+      rationale:
+        '팀원들의 기술 스택과 협업 경험을 종합하면, 기존 도구의 불편함을 해소하는 내부 플랫폼 구축이 가장 적합합니다.',
+      tags: ['React', 'NestJS', 'WebSocket'],
+      aiGenerated: true,
+      confirmedAt: null,
+      reactions: [
+        { userId: 'u1', reaction: 'agree' },
+        { userId: 'u2', reaction: 'agree' },
+      ],
+    },
+    {
+      id: 'topic-002',
+      title: 'AI 기반 코드 리뷰 자동화',
+      rationale:
+        '팀의 AI 역량과 백엔드 경험을 활용해 코드 품질 자동화 도구를 구축하면 높은 학습 효과를 얻을 수 있습니다.',
+      tags: ['OpenAI', 'GitHub API', 'Node.js'],
+      aiGenerated: true,
+      confirmedAt: null,
+      reactions: [{ userId: 'u3', reaction: 'concern' }],
+    },
+    {
+      id: 'topic-003',
+      title: '실시간 팀 성과 대시보드',
+      rationale:
+        '팀원들의 데이터 시각화 관심도와 프론트엔드 역량을 고려하면 실시간 대시보드가 효과적인 학습 프로젝트입니다.',
+      tags: ['D3.js', 'PostgreSQL', 'Redis'],
+      aiGenerated: true,
+      confirmedAt: null,
+      reactions: [],
+    },
+  ];
+
+  if (screen === 'kickoff-topic-loading') {
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <TopicDecisionClient
+          teamId="mock-team-001"
+          initialData={{ status: 'pending', jobId: 'job-001' }}
+          httpStatus={202}
+          userRole="leader"
+        />
+      </div>
+    );
+  }
+
+  if (screen === 'kickoff-topic-leader') {
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <TopicDecisionClient
+          teamId="mock-team-001"
+          initialData={{ topics: MOCK_TOPICS, confirmedTopic: null }}
+          httpStatus={200}
+          userRole="leader"
+        />
+      </div>
+    );
+  }
+
+  if (screen === 'kickoff-topic-member') {
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <TopicDecisionClient
+          teamId="mock-team-001"
+          initialData={{ topics: MOCK_TOPICS, confirmedTopic: null }}
+          httpStatus={200}
+          userRole="member"
         />
       </div>
     );

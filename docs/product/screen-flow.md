@@ -54,7 +54,7 @@ Login (OAuth)
 | 4 Skill Assessment | `/team/[teamId]/survey` | team membership exists, role is leader or member | survey submitted or saved | ✅ | implemented |
 | 5 Personal Result | `/team/[teamId]/result` | survey submitted (leader/member only) | role reaction saved or skipped | ✅ | implemented |
 | 6 Team Dashboard | `/dashboard` (global) + `/team/[teamId]/dashboard` (per-team) | authenticated | kickoff CTA clicked (all surveys submitted) | ✅ | implemented |
-| 7 Topic Decision | `/team/[teamId]/topic` | all surveys submitted (phase: survey_complete) | topic confirmed by leader | ⬜ | ready-for-build |
+| 7 Topic Decision | `/team/[teamId]/topic` | all surveys submitted (phase: survey_complete) | topic confirmed by leader | ✅ | implemented |
 | 8a System Framing | `/team/[teamId]/structure` | topic confirmed (phase: topic_confirmed) | structure blocks accepted by leader | ⬜ | ready-for-build |
 | 8b Technical Narrowing | `/team/[teamId]/stack` | structure accepted (phase: structure_accepted) | stack confirmed by leader | ⬜ | ready-for-build |
 | 9 Handoff Layer | `/team/[teamId]/handoff` | stack confirmed (phase: stack_confirmed) | all artifacts accepted by leader | ⬜ | needs-adr (KF-015) |
@@ -99,7 +99,7 @@ Legend:
 | 5 Personal Result | `/team/[teamId]/result` | rw | rw | - | Observer redirects to `/dashboard` |
 | 6 Team Dashboard (global) | `/dashboard` | rw | rw | r | Shows all teams user belongs to; CTA buttons for create/join |
 | 6 Team Dashboard (per-team) | `/team/[teamId]` | rw | rw | r | Observer sees aggregated view, no edit actions |
-| 7 Topic Decision | `/team/[teamId]/kickoff/topic` | rw | rw | r | Observer cannot submit or react |
+| 7 Topic Decision | `/team/[teamId]/topic` | rw | react | r | leader: 주제 선택+확정; member: 이모지 반응만; observer: 읽기 전용. topic_confirmed 이후 전체 read-only (KF-023) |
 | 8 Architecture Builder | `/team/[teamId]/kickoff/architecture` | rw | rw | r | Observer cannot select options |
 | 9 Handoff Layer | `/team/[teamId]/kickoff/handoff` | rw | r | r | Member views generated artifacts, cannot regenerate |
 | 10 Contract Gate | `/team/[teamId]/kickoff/summary` | rw + sign | r + react | r | Leader signs; member acknowledges; observer reads |
