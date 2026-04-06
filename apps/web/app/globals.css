@@ -1,0 +1,123 @@
+:root {
+  --tf-surface-background: hsl(48 33% 96%);
+  --tf-surface-card: hsl(42 100% 99%);
+  --tf-text-primary: hsl(204 22% 8%);
+  --tf-text-muted: hsl(208 11% 40%);
+  --tf-border-subtle: hsl(210 18% 87%);
+  --tf-accent-primary: hsl(162 62% 23%);
+  --tf-accent-primary-strong: hsl(161 60% 16%);
+  --tf-font-sans: "Pretendard", sans-serif;
+
+  /* Primitive palette */
+  --tf-green-50: #f0fdf4;
+  --tf-green-100: #dcfce7;
+  --tf-green-500: #22c55e;
+  --tf-green-600: #16a34a;
+  --tf-green-700: #15803d;
+  --tf-green-950: #052e16;
+
+  --tf-slate-50: #f8fafc;
+  --tf-slate-100: #f1f5f9;
+  --tf-slate-200: #e2e8f0;
+  --tf-slate-500: #64748b;
+  --tf-slate-700: #334155;
+  --tf-slate-900: #0f172a;
+  --tf-slate-950: #020617;
+
+  --tf-blue-500: #3b82f6;
+  --tf-yellow-500: #f59e0b;
+  --tf-red-500: #ef4444;
+
+  /* 브랜드 색상 (카카오 공식 가이드라인) */
+  --tf-kakao-yellow: #fee500;
+  --tf-kakao-text: #191919;
+
+  /* shadcn/ui 호환 토큰 */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 142.1 76.2% 36.3%;
+  --primary-foreground: 355.7 100% 97.3%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 142.4 71.8% 29.2%;
+  --radius: 0.75rem;
+
+  /* 역할별 색상 */
+  --tf-role-leader: var(--tf-green-600);
+  --tf-role-member: var(--tf-blue-500);
+  --tf-role-observer: var(--tf-slate-500);
+
+  /* 상태 색상 */
+  --tf-status-success: var(--tf-green-500);
+  --tf-status-warning: var(--tf-yellow-500);
+  --tf-status-error: var(--tf-red-500);
+  --tf-status-info: var(--tf-blue-500);
+
+  /* 포커스/비활성 */
+  --tf-focus-ring: var(--tf-green-500);
+  --tf-disabled: var(--tf-slate-200);
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 142.1 70.6% 45.3%;
+  --primary-foreground: 144.9 80.4% 10%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 142.4 71.8% 29.2%;
+
+  --tf-surface-background: hsl(222.2 84% 4.9%);
+  --tf-surface-card: hsl(222.2 47.4% 11.2%);
+  --tf-text-primary: hsl(210 40% 98%);
+  --tf-text-muted: hsl(215 20.2% 65.1%);
+  --tf-border-subtle: hsl(217.2 32.6% 17.5%);
+  --tf-accent-primary: hsl(142.1 70.6% 45.3%);
+  --tf-accent-primary-strong: hsl(142.1 76.2% 36.3%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--tf-surface-background);
+  color: var(--tf-text-primary);
+  font-family: var(--tf-font-sans);
+}
+
+body {
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
