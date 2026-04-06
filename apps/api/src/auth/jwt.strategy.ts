@@ -2,10 +2,11 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ExchangeTokenPayloadSchema, type ExchangeTokenPayload } from '@teamforge/contracts';
+import { JtiCacheService } from './jti-cache.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private readonly jtiCache: JtiCacheService) {
     const secret = process.env.SESSION_EXCHANGE_SECRET;
     if (!secret) {
       throw new Error('SESSION_EXCHANGE_SECRET environment variable is not set');
@@ -25,13 +26,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!result.success) {
       throw new UnauthorizedException('Invalid token payload');
     }
-    // exp 상한선 검증: 발급 시각 기준 최대 5분(300s) 초과 불가
+
     const now = Math.floor(Date.now() / 1000);
+
+    // exp 상한선: 발급 시각 기준 최대 300s 초과 불가
     if (result.data.exp > now + 300) {
       throw new UnauthorizedException('Token expiry exceeds maximum allowed (300s)');
     }
-    // TODO: jti 재사용 방지 — Redis CacheModule 도입 후 구현 (KF-005 참고)
-    // jti를 TTL=300s로 캐시에 저장하고 중복 사용 시 UnauthorizedException
+
+    // jti 재사용 방지 (인메모리 — KF-005: Redis로 교체 예정)
+    if (this.jtiCache.isUsed(result.data.jti)) {
+      throw new UnauthorizedException('Token already used (jti replay detected)');
+    }
+    this.jtiCache.markUsed(result.data.jti, result.data.exp);
+
     return result.data;
   }
 }

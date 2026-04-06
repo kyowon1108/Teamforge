@@ -67,3 +67,23 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `apps/web/app/**/actions.ts` 전체, `apps/web/lib/auth.ts`, 이후 Screen 4~10 Server Actions
 
 **일지:** [260406_04](./260406_04-auth-infra-screen1-3.md)
+
+## KF-007 — BFF 패턴: apiFetch는 서버 전용, 클라이언트 호출은 별도 hook 경로로 분리
+
+**결론:** `apps/web/lib/api-fetch.ts`의 `apiFetch`는 서버 컴포넌트 및 Server Actions 전용이다. 클라이언트 컴포넌트에서 API를 직접 호출해야 하는 경우 별도의 클라이언트 hook(`useXxx`) 경로를 만들고 서버에서 발급한 세션 쿠키를 통해 인증한다.
+
+**이유:** `apiFetch`는 내부적으로 `INTERNAL_API_URL`과 `jose SignJWT`를 사용해 서버 간 신뢰 토큰을 생성한다. 이 로직이 클라이언트 번들에 포함되면 서명 시크릿이 노출될 위험이 있다.
+
+**영향 범위:** `apps/web/lib/api-fetch.ts`, `apps/web/app/**/actions.ts`, 이후 클라이언트 훅 파일
+
+**일지:** [260406_05](./260406_05-css-auth-bff-dashboard.md)
+
+## KF-008 — /api/auth/sync 는 X-Sync-Secret 헤더로 BFF 전용 보호
+
+**결론:** `POST /api/auth/sync` 엔드포인트는 `SyncSecretGuard`를 통해 `X-Sync-Secret` 헤더 값을 검증한다. 이 값은 환경변수 `SYNC_INTERNAL_SECRET`에서 읽으며, BFF(`apps/web`) 서버 외부에서의 직접 호출을 차단한다.
+
+**이유:** NextAuth jwt callback에서 DB sync를 수행할 때 해당 엔드포인트가 공개 인터넷에 노출되면 임의의 사용자가 role·profile 데이터를 조작할 수 있다. 서버 간 시크릿 헤더로 BFF 전용 경로임을 강제한다.
+
+**영향 범위:** `apps/api/src/auth/sync.guard.ts`, `apps/web/lib/auth.ts` jwt callback, `SYNC_INTERNAL_SECRET` 환경변수
+
+**일지:** [260406_05](./260406_05-css-auth-bff-dashboard.md)

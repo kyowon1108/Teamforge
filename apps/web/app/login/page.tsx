@@ -12,11 +12,11 @@ interface LoginPageProps {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const session = await auth();
   if (session) {
-    redirect('/role-select');
+    redirect('/dashboard');
   }
 
   const { callbackUrl } = await searchParams;
-  const redirectTo = callbackUrl ?? '/role-select';
+  const redirectTo = callbackUrl ?? '/dashboard';
 
   const kakaoEnabled = Boolean(process.env.KAKAO_CLIENT_ID);
 

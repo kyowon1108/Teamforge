@@ -6,7 +6,7 @@ const SAFE_PATH = /^\/[a-z0-9\-/]*$/i;
 
 function sanitizeCallbackUrl(raw: string | undefined): string {
   if (raw && SAFE_PATH.test(raw)) return raw;
-  return '/role-select';
+  return '/dashboard';
 }
 
 export async function signInWithProvider(

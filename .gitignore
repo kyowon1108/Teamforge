@@ -35,3 +35,10 @@ apps/api/generated
 # Uploads / tmp
 uploads/
 tmp/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Screenshots / test artifacts
+screenshots/
+.playwright-mcp/

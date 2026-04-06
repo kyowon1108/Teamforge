@@ -65,8 +65,17 @@ export class TeamsController {
   }
 
   /**
+   * GET /api/teams
+   * 현재 로그인 유저의 모든 활성 팀 목록 반환
+   */
+  @Get()
+  async getMyTeams(@CurrentUser() user: ExchangeTokenPayload) {
+    return this.teamsService.getMyTeams(user.sub);
+  }
+
+  /**
    * GET /api/teams/me
-   * 내 팀 정보 조회
+   * 내 팀 정보 조회 (단일 팀 — 첫 번째 팀)
    */
   @Get('me')
   async getMyTeam(@CurrentUser() user: ExchangeTokenPayload) {

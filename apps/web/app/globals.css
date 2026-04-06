@@ -1,123 +1,222 @@
-:root {
-  --tf-surface-background: hsl(48 33% 96%);
-  --tf-surface-card: hsl(42 100% 99%);
-  --tf-text-primary: hsl(204 22% 8%);
-  --tf-text-muted: hsl(208 11% 40%);
-  --tf-border-subtle: hsl(210 18% 87%);
-  --tf-accent-primary: hsl(162 62% 23%);
-  --tf-accent-primary-strong: hsl(161 60% 16%);
-  --tf-font-sans: "Pretendard", sans-serif;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  /* Primitive palette */
-  --tf-green-50: #f0fdf4;
-  --tf-green-100: #dcfce7;
-  --tf-green-500: #22c55e;
-  --tf-green-600: #16a34a;
-  --tf-green-700: #15803d;
-  --tf-green-950: #052e16;
+@layer base {
+  :root {
+    /* ── SEED Design System — Background tokens ─────────────── */
+    --tf-bg-layer-default:     #ffffff;
+    --tf-bg-layer-alt:         #f7f8fa;
+    --tf-bg-layer-floating:    #ffffff;
+    --tf-bg-overlay:           rgba(0, 0, 0, 0.5);
+    --tf-bg-brand-solid:       #4E8EF7;
+    --tf-bg-positive:          #E8F5E9;
+    --tf-bg-negative:          #FFEBEE;
+    --tf-bg-warning:           #FFF8E1;
+    --tf-bg-info:              #E3F2FD;
 
-  --tf-slate-50: #f8fafc;
-  --tf-slate-100: #f1f5f9;
-  --tf-slate-200: #e2e8f0;
-  --tf-slate-500: #64748b;
-  --tf-slate-700: #334155;
-  --tf-slate-900: #0f172a;
-  --tf-slate-950: #020617;
+    /* ── Foreground (Text / Icon) ────────────────────────────── */
+    --tf-fg-default:           #212124;
+    --tf-fg-muted:             #6B6B6B;
+    --tf-fg-subtle:            #A4A4A4;
+    --tf-fg-disabled:          #C4C4C4;
+    --tf-fg-inverse:           #ffffff;
+    --tf-fg-brand:             #4E8EF7;
+    --tf-fg-positive:          #1B873B;
+    --tf-fg-negative:          #D32F2F;
+    --tf-fg-warning:           #F9A825;
+    --tf-fg-info:              #1565C0;
 
-  --tf-blue-500: #3b82f6;
-  --tf-yellow-500: #f59e0b;
-  --tf-red-500: #ef4444;
+    /* ── Stroke (Border) ─────────────────────────────────────── */
+    --tf-stroke-neutral:       #E8E8E8;
+    --tf-stroke-neutral-muted: #F0F0F0;
+    --tf-stroke-brand:         #4E8EF7;
+    --tf-stroke-positive:      #1B873B;
+    --tf-stroke-negative:      #D32F2F;
+    --tf-stroke-focus:         #4E8EF7;
 
-  /* 브랜드 색상 (카카오 공식 가이드라인) */
-  --tf-kakao-yellow: #fee500;
-  --tf-kakao-text: #191919;
+    /* ── Interactive / Brand ─────────────────────────────────── */
+    --tf-brand-primary:        #4E8EF7;
+    --tf-brand-primary-hover:  #2d77f5;
+    --tf-brand-primary-fg:     #ffffff;
 
-  /* shadcn/ui 호환 토큰 */
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 142.1 76.2% 36.3%;
-  --primary-foreground: 355.7 100% 97.3%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 142.4 71.8% 29.2%;
-  --radius: 0.75rem;
+    /* ── Role colors ──────────────────────────────────────────── */
+    --tf-role-leader:          #1B873B;
+    --tf-role-member:          #4E8EF7;
+    --tf-role-observer:        #6B6B6B;
 
-  /* 역할별 색상 */
-  --tf-role-leader: var(--tf-green-600);
-  --tf-role-member: var(--tf-blue-500);
-  --tf-role-observer: var(--tf-slate-500);
+    /* ── Status colors ───────────────────────────────────────── */
+    --tf-status-success:       #1B873B;
+    --tf-status-warning:       #F9A825;
+    --tf-status-error:         #D32F2F;
+    --tf-status-info:          #1565C0;
 
-  /* 상태 색상 */
-  --tf-status-success: var(--tf-green-500);
-  --tf-status-warning: var(--tf-yellow-500);
-  --tf-status-error: var(--tf-red-500);
-  --tf-status-info: var(--tf-blue-500);
+    /* ── Safe Area (모바일) ───────────────────────────────────── */
+    --safe-area-inset-top:     env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom:  env(safe-area-inset-bottom, 0px);
 
-  /* 포커스/비활성 */
-  --tf-focus-ring: var(--tf-green-500);
-  --tf-disabled: var(--tf-slate-200);
+    /* ── Brand tokens (카카오) ───────────────────────────────── */
+    --tf-kakao-yellow:         #fee500;
+    --tf-kakao-text:           #191919;
+
+    /* ── Primitive palette ───────────────────────────────────── */
+    --tf-blue-500:             #4E8EF7;
+    --tf-green-500:            #1B873B;
+    --tf-green-600:            #1B873B;
+    --tf-yellow-500:           #F9A825;
+    --tf-red-500:              #D32F2F;
+    --tf-slate-200:            #E8E8E8;
+    --tf-slate-500:            #6B6B6B;
+
+    /* ── Backward-compat aliases (기존 컴포넌트 호환) ────────── */
+    --tf-surface-background:   var(--tf-bg-layer-alt);
+    --tf-surface-card:         var(--tf-bg-layer-default);
+    --tf-text-primary:         var(--tf-fg-default);
+    --tf-text-muted:           var(--tf-fg-muted);
+    --tf-border-subtle:        var(--tf-stroke-neutral);
+    --tf-accent-primary:       var(--tf-brand-primary);
+    --tf-accent-primary-strong:var(--tf-brand-primary-hover);
+    --tf-focus-ring:           var(--tf-stroke-focus);
+    --tf-disabled:             var(--tf-stroke-neutral-muted);
+
+    /* ── Figma tf-tokens aliases ─────────────────────────────── */
+    --tf-color-primary:        var(--tf-brand-primary);
+    --tf-color-primary-foreground: var(--tf-brand-primary-fg);
+    --tf-color-background:     var(--tf-bg-layer-default);
+    --tf-color-surface:        var(--tf-bg-layer-alt);
+    --tf-color-foreground:     var(--tf-fg-default);
+    --tf-color-foreground-muted: var(--tf-fg-muted);
+    --tf-color-border:         var(--tf-stroke-neutral);
+    --tf-color-muted:          var(--tf-bg-layer-alt);
+    --tf-color-destructive:    var(--tf-fg-negative);
+    --tf-color-secondary:      #f0f4ff;
+
+    /* ── shadcn/ui 호환 토큰 ─────────────────────────────────── */
+    --background:              0 0% 100%;
+    --foreground:              0 0% 13%;
+    --card:                    0 0% 100%;
+    --card-foreground:         0 0% 13%;
+    --popover:                 0 0% 100%;
+    --popover-foreground:      0 0% 13%;
+    --primary:                 217 90% 64%;
+    --primary-foreground:      0 0% 100%;
+    --secondary:               220 9% 97%;
+    --secondary-foreground:    0 0% 13%;
+    --muted:                   220 9% 97%;
+    --muted-foreground:        0 0% 42%;
+    --accent:                  220 9% 97%;
+    --accent-foreground:       0 0% 13%;
+    --destructive:             0 72% 51%;
+    --destructive-foreground:  0 0% 100%;
+    --border:                  0 0% 91%;
+    --input:                   0 0% 91%;
+    --ring:                    217 90% 64%;
+    --radius:                  0.5rem;
+  }
+
+  .dark {
+    --tf-bg-layer-default:     #18181b;
+    --tf-bg-layer-alt:         #09090b;
+    --tf-bg-layer-floating:    #27272a;
+    --tf-fg-default:           #fafafa;
+    --tf-fg-muted:             #a1a1aa;
+    --tf-fg-subtle:            #71717a;
+    --tf-stroke-neutral:       #27272a;
+    --tf-stroke-neutral-muted: #3f3f46;
+    --tf-brand-primary:        #60a5fa;
+
+    --tf-surface-background:   var(--tf-bg-layer-alt);
+    --tf-surface-card:         var(--tf-bg-layer-default);
+    --tf-text-primary:         var(--tf-fg-default);
+    --tf-text-muted:           var(--tf-fg-muted);
+    --tf-border-subtle:        var(--tf-stroke-neutral);
+    --tf-accent-primary:       var(--tf-brand-primary);
+
+    --background:              222.2 84% 4.9%;
+    --foreground:              210 40% 98%;
+    --card:                    222.2 84% 4.9%;
+    --card-foreground:         210 40% 98%;
+    --popover:                 222.2 84% 4.9%;
+    --popover-foreground:      210 40% 98%;
+    --primary:                 217 90% 64%;
+    --primary-foreground:      0 0% 100%;
+    --secondary:               217.2 32.6% 17.5%;
+    --secondary-foreground:    210 40% 98%;
+    --muted:                   217.2 32.6% 17.5%;
+    --muted-foreground:        215 20.2% 65.1%;
+    --accent:                  217.2 32.6% 17.5%;
+    --accent-foreground:       210 40% 98%;
+    --destructive:             0 62.8% 30.6%;
+    --destructive-foreground:  210 40% 98%;
+    --border:                  217.2 32.6% 17.5%;
+    --input:                   217.2 32.6% 17.5%;
+    --ring:                    217 90% 64%;
+  }
+
+  * {
+    box-sizing: border-box;
+    border-color: var(--tf-stroke-neutral);
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--tf-bg-layer-alt);
+    color: var(--tf-fg-default);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont,
+      'Apple SD Gothic Neo', 'Segoe UI', Roboto, 'Helvetica Neue',
+      Arial, 'Noto Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* ── Touch targets (WCAG 2.5.5) ─────────────────────────── */
+  .icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-btn::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+  }
+
+  /* ── Bottom CTA safe area ─────────────────────────────────── */
+  .bottom-cta {
+    padding-bottom: calc(56px + var(--safe-area-inset-bottom));
+  }
+
+  /* ── Reduced motion ───────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .swipe-animation,
+    .chart-animation {
+      animation: none;
+      transition: none;
+    }
+  }
 }
 
-.dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 142.1 70.6% 45.3%;
-  --primary-foreground: 144.9 80.4% 10%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 142.4 71.8% 29.2%;
-
-  --tf-surface-background: hsl(222.2 84% 4.9%);
-  --tf-surface-card: hsl(222.2 47.4% 11.2%);
-  --tf-text-primary: hsl(210 40% 98%);
-  --tf-text-muted: hsl(215 20.2% 65.1%);
-  --tf-border-subtle: hsl(217.2 32.6% 17.5%);
-  --tf-accent-primary: hsl(142.1 70.6% 45.3%);
-  --tf-accent-primary-strong: hsl(142.1 76.2% 36.3%);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background: var(--tf-surface-background);
-  color: var(--tf-text-primary);
-  font-family: var(--tf-font-sans);
-}
-
-body {
-  min-height: 100vh;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
+@layer utilities {
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
 }

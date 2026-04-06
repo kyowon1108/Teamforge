@@ -23,11 +23,18 @@ TeamForge 프로젝트의 모든 작업 진입점. Codex에 먼저 계획을 검
   │
   ▼
 3. [구현 에이전트 할당] 도메인 순서대로 실행
+   Flow 설계 포함 시: tf-flow (전체 전에)
+   UI 설계 포함 시:
+     3a. tf-design pre-build (figmaFileKey 있으면 Figma 읽기 포함)
+     → STATUS=awaiting_approval이면 사용자에게 디자인 가이드 확인 요청 후 진행
+     3b. [사용자 승인 체크포인트 #1] "위 디자인 가이드로 구현할게요. 계속할까요?"
    DB 변경 있으면: tf-db 먼저
    Backend 변경 있으면: tf-backend (DB 완료 후)
    Frontend 변경 있으면: tf-frontend (Backend 완료 후)
-   UI 설계 포함 시: tf-design (frontend 전에)
-   Flow 설계 포함 시: tf-flow (전체 전에)
+   UI 설계 포함 시 (구현 완료 후):
+     3c. tf-design post-build (figmaFileKey 있으면 Figma write-back 포함)
+     → STATUS=awaiting_approval이면 사용자에게 결과 확인 요청 후 진행
+     3d. [사용자 승인 체크포인트 #2] "구현 결과를 Figma에 반영했어요. 다음 단계 진행할까요?"
   │
   ▼
 4. [병렬 검증]
@@ -69,6 +76,13 @@ TeamForge 프로젝트의 모든 작업 진입점. Codex에 먼저 계획을 검
 /tfo "Survey Section 2 UI 개선"
 /tfo "AI 에이전트 응답 파싱 에러 수정"
 /tfo "킥오프 배치 A 구현"
+```
+
+Figma 연동 시 (figmaFileKey 추가)
+
+```
+/tfo "Button 컴포넌트 구현" figmaFileKey=vvmx5ls8xftcqB7Cvlse3Q
+/tfo "Screen 3a 팀 생성 UI 개선" figmaFileKey=vvmx5ls8xftcqB7Cvlse3Q
 ```
 
 ## 에이전트 상태 보고 형식

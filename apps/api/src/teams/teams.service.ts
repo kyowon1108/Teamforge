@@ -9,11 +9,8 @@ import type { JoinTeamDto } from './dto/join-team.dto';
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
 }
 
 @Injectable()
@@ -24,18 +21,6 @@ export class TeamsService {
     userId: string,
     dto: CreateTeamDto,
   ): Promise<{ teamId: string; inviteCode: string }> {
-    // 이미 팀에 속해있는지 확인
-    const existing = await this.prisma.teamMembership.findFirst({
-      where: { userId },
-    });
-
-    if (existing) {
-      throw new ConflictException({
-        code: 'ALREADY_IN_TEAM',
-        message: '이미 팀에 속해있습니다',
-      });
-    }
-
     // 고유한 inviteCode 생성 (충돌 재시도 최대 5회)
     let inviteCode = generateInviteCode();
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -69,18 +54,6 @@ export class TeamsService {
     userId: string,
     dto: JoinTeamDto,
   ): Promise<{ teamId: string }> {
-    // 이미 팀에 속해있는지 확인
-    const existing = await this.prisma.teamMembership.findFirst({
-      where: { userId },
-    });
-
-    if (existing) {
-      throw new ConflictException({
-        code: 'ALREADY_IN_TEAM',
-        message: '이미 팀에 속해있습니다',
-      });
-    }
-
     const team = await this.prisma.team.findUnique({
       where: { inviteCode: dto.inviteCode },
     });
@@ -113,6 +86,29 @@ export class TeamsService {
     });
 
     return { teamId: team.id };
+  }
+
+  async getMyTeams(userId: string) {
+    const memberships = await this.prisma.teamMembership.findMany({
+      where: { userId },
+      include: {
+        team: {
+          include: {
+            _count: { select: { memberships: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return memberships.map((m) => ({
+      teamId: m.team.id,
+      name: m.team.name,
+      role: m.role,
+      memberCount: m.team._count.memberships,
+      inviteCode: m.role === 'leader' ? m.team.inviteCode : undefined,
+      createdAt: m.team.createdAt,
+    }));
   }
 
   async getMyTeam(userId: string) {

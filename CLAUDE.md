@@ -42,6 +42,26 @@
 
 ---
 
+### `figma:figma-use` + `figma:figma-implement-design` — Figma MCP 연동
+
+**tf-design 에이전트가 내부적으로 사용. 직접 호출 시에도 활용 가능.**
+
+| 사용 시점 | 방법 |
+|----------|------|
+| Figma 디자인 → 코드 참조 추출 | `mcp__plugin_figma_figma__get_design_context` |
+| Figma에 컴포넌트/레이어 생성 | `figma:figma-use` 스킬 로드 후 `mcp__plugin_figma_figma__use_figma` |
+| 구현 전/후 스냅샷 비교 | `mcp__plugin_figma_figma__get_screenshot` |
+
+**TeamForge Figma 파일 키**: `vvmx5ls8xftcqB7Cvlse3Q`
+(파일: `figma.com/design/vvmx5ls8xftcqB7Cvlse3Q/`)
+
+현재 파일 구성:
+- `tf-tokens` 변수 컬렉션 (color/primary 등 15개 토큰)
+- `Button` 컴포넌트 세트 (Primary/Secondary/Outline/Ghost/Destructive × sm/md/lg)
+- `TeamForge — Component Overview` 프레임 (1440×900)
+
+---
+
 ### `/seed-web` — SEED 디자인 시스템 문서 (로컬 스킬)
 
 **shadcn/ui 컴포넌트 커스터마이징, SEED 토큰 참조 시 사용.**
