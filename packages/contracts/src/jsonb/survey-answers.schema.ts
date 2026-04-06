@@ -10,15 +10,18 @@ const Section1Schema = z.object({
 
 // Section 2: 기술 스택
 const Section2Schema = z.object({
-  techStackList: z.array(z.string()).optional(),
-  skillRatings: z.record(z.string(), z.number().int().min(1).max(5)).optional(),
+  techStackList: z.array(z.string().max(50)).max(30).optional(),
+  skillRatings: z
+    .record(z.string().max(50), z.number().int().min(1).max(5))
+    .refine((v) => Object.keys(v).length <= 30, { message: 'skillRatings 키는 최대 30개' })
+    .optional(),
   topStrengths: z.array(z.string()).max(2).optional(),
 });
 
 // Section 3: 프로젝트 경험
 const Section3Schema = z.object({
   projectCount: z.number().int().min(0).optional(),
-  actualRoles: z.array(z.string()).optional(),
+  actualRoles: z.array(z.string().max(50)).max(10).optional(),
   gitCollabLevel: z.number().int().min(0).max(4).optional(),
 });
 

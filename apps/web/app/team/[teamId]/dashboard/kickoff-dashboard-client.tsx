@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Check, Clock, Minus, Users, ChevronRight } from 'lucide-react';
 import type { KickoffStatusResponse, KickoffMember } from './page';
 
@@ -36,11 +37,12 @@ function MemberAvatar({ member }: { member: KickoffMember }) {
       aria-label={member.name ?? '팀원'}
     >
       {member.image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={member.image}
           alt={member.name ?? '팀원'}
-          className="w-9 h-9 rounded-full object-cover"
+          width={36}
+          height={36}
+          className="rounded-full object-cover"
         />
       ) : (
         getInitials(member.name)
