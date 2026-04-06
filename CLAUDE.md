@@ -320,15 +320,18 @@ scope 예시: `auth`, `survey`, `meeting`, `changes`, `ai/agent1`, `db/migration
 
 ---
 
-## 현재 진행 Phase (2026-04-06 기준)
+## 현재 진행 Phase (2026-04-07 기준)
 
-**인증·팀 기초 구현 완료. 킥오프 플로우(Screen 4~10) 전체 미구현.**
+**Screen 1~6 구현 완료. Screen 7~11 미구현.**
 
 ### 실제 구현 완료 (page.tsx 파일 존재 + 동작)
 - Screen 1 `/login` — Google / GitHub / Kakao OAuth, JWT exchange token BFF
 - Screen 3a `/team/create` — 팀 생성, crypto 초대코드
 - Screen 3b `/team/join` — 초대코드 + 역할 선택 (member/observer)
-- Screen 6 `/dashboard` — 다중 팀 목록, "새 팀 만들기" / "초대코드 참가" CTA
+- Screen 4 `/team/[teamId]/survey` — 6섹션 설문, 자동저장(draft), 최종제출
+- Screen 5 `/team/[teamId]/result` — 개인 결과 SVG 레이더 차트 (6축 점수)
+- Screen 6 `/team/[teamId]/dashboard` — 킥오프 현황 (팀 설문 진행률, 멤버 목록)
+- Dashboard `/dashboard` — 다중 팀 목록, "새 팀 만들기" / "초대코드 참가" CTA
 
 ### 변경/deprecated
 - Screen 2 `/role-select` → **deprecated**, `/dashboard`로 리다이렉트
@@ -339,17 +342,12 @@ scope 예시: `auth`, `survey`, `meeting`, `changes`, `ai/agent1`, `db/migration
 - NextAuth v5 JWT 전략 (Prisma adapter 없음, 세션 쿠키)
 - `/api/auth/sync` BFF sync endpoint (X-Sync-Secret 보호)
 - JtiCacheService 인메모리 replay 방지 (KF-005: 추후 Redis 교체 예정)
+- ParseTeamIdPipe CUID 검증 (`/^[a-z0-9]{20,30}$/`) 전체 엔드포인트 적용
+- XSS 에러 메시지 whitelist, next/image remotePatterns 보안 강화
 - SEED CSS 토큰 (`--tf-bg-*`, `--tf-fg-*`, `--tf-stroke-*`) 전체 이식
-- Figma 파일: tf-tokens 28개, Button Component Set 15 variants, Screen 1~3 캡처
-
-### 즉시 해야 할 것 (Now)
-1. Screen 4 스킬 설문 — DB 스키마 + API + UI (6섹션 15문항, 원본 Teamforge에서 포팅)
-2. `SurveyResponse` Prisma 모델 추가
-3. screen-flow.md 플로우 현실화 (Login → Dashboard, role-select 제거)
+- Figma 파일: Screen 1~6 desktop+mobile 캡처 완료 (파일키: `vvmx5ls8xftcqB7Cvlse3Q`)
 
 ### 다음 (Next)
-- Screen 5 `/team/[teamId]/result` — 개인 결과 (레이더 차트)
-- Screen 6 `/team/[teamId]/dashboard` — 팀 대시보드 (survey 상태 집계)
 - Screen 7 `/team/[teamId]/topic` — 킥오프 주제 결정
 - Screen 8 `/team/[teamId]/structure` + `/stack` — 아키텍처/스택 선택
 

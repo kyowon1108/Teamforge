@@ -51,9 +51,9 @@ Login (OAuth)
 | 2 Role Select | `/role-select` | — **deprecated** — | redirects to `/dashboard` | ⚠️ | deprecated |
 | 3a Team Create | `/team/create` | authenticated, dashboard CTA clicked | team created, invite code shown, then → `/team/[teamId]` | ✅ | implemented |
 | 3b Team Join | `/team/join` | authenticated, dashboard CTA clicked | team joined (role: member\|observer), then → `/team/[teamId]` | ✅ | implemented |
-| 4 Skill Assessment | `/team/[teamId]/survey` | team membership exists, role is leader or member | survey submitted or saved | ⬜ | ready-for-build |
-| 5 Personal Result | `/team/[teamId]/result` | survey submitted (leader/member only) | role reaction saved or skipped | ⬜ | ready-for-build |
-| 6 Team Dashboard | `/dashboard` (global) + `/team/[teamId]/dashboard` (per-team) | authenticated | kickoff CTA clicked (all surveys submitted) | ✅ (global) ⬜ (per-team) | implemented (partial) |
+| 4 Skill Assessment | `/team/[teamId]/survey` | team membership exists, role is leader or member | survey submitted or saved | ✅ | implemented |
+| 5 Personal Result | `/team/[teamId]/result` | survey submitted (leader/member only) | role reaction saved or skipped | ✅ | implemented |
+| 6 Team Dashboard | `/dashboard` (global) + `/team/[teamId]/dashboard` (per-team) | authenticated | kickoff CTA clicked (all surveys submitted) | ✅ | implemented |
 | 7 Topic Decision | `/team/[teamId]/topic` | all surveys submitted (phase: survey_complete) | topic confirmed by leader | ⬜ | ready-for-build |
 | 8a System Framing | `/team/[teamId]/structure` | topic confirmed (phase: topic_confirmed) | structure blocks accepted by leader | ⬜ | ready-for-build |
 | 8b Technical Narrowing | `/team/[teamId]/stack` | structure accepted (phase: structure_accepted) | stack confirmed by leader | ⬜ | ready-for-build |
@@ -119,8 +119,8 @@ These rules apply in order. The first matching condition wins.
 | 1 | Unauthenticated user hits any PROTECTED_PATH | `/login` (Screen 1) | ✅ | `middleware.ts` enforces PROTECTED_PATHS list (KF-005) |
 | 2 | Authenticated + role not set → `/role-select` | `/dashboard` | ⚠️ deprecated | `/role-select` no longer a setup gate; redirects straight to `/dashboard` |
 | 3 | Authenticated + no team → CTA prompt | `/dashboard` (empty state CTA) | ✅ | No hard redirect; dashboard shows empty state with create/join buttons |
-| 4 | `observer` role + `/team/[teamId]/survey` | `/dashboard` | ⬜ | Survey is not applicable to observers |
-| 5 | `observer` role + `/team/[teamId]/result` | `/dashboard` | ⬜ | Personal result is not applicable to observers |
+| 4 | `observer` role + `/team/[teamId]/survey` | `/dashboard` | ✅ | Survey is not applicable to observers |
+| 5 | `observer` role + `/team/[teamId]/result` | `/dashboard` | ✅ | Personal result is not applicable to observers |
 | 6 | `member` or `observer` + leader-only write action (sign, regenerate) | Same screen, read-only variant rendered | ⬜ | No redirect; UI suppresses action controls |
 | 7 | Authenticated + team exists + hits `/login`, `/team/create`, or `/team/join` after setup | `/dashboard` | ⬜ | Prevent backward navigation to completed setup steps |
 
