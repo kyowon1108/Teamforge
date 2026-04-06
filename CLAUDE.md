@@ -55,14 +55,15 @@
 **TeamForge Figma 파일 키**: `vvmx5ls8xftcqB7Cvlse3Q`
 (파일: `figma.com/design/vvmx5ls8xftcqB7Cvlse3Q/`)
 
-현재 파일 구성:
+현재 파일 구성 (페이지 ID):
 - `tf-tokens` 변수 컬렉션 (color/primary 등 28개 토큰)
 - `Button` 컴포넌트 세트 (Primary/Secondary/Outline/Ghost/Destructive × sm/md/lg)
-- `Page 1`: `TeamForge — Component Overview` 프레임 (1440×900)
-- `Screen 1 — Login`: desktop(1440) + mobile(390) 캡처
-- `Screen 2 — Dashboard`: empty/teams 상태 × desktop/mobile 캡처
-- `Screen 3a — Team Create`: desktop + mobile 캡처
-- `Screen 3b — Team Join`: desktop + mobile 캡처
+- `21:9`  Screen 1 — Login: desktop + mobile 캡처
+- `21:10` Screen 2 — Dashboard: desktop + mobile 캡처
+- `21:11` Screen 3 — Team Create / Join: desktop + mobile 캡처
+- `40:2`  Screen 4 — Survey: desktop + mobile 캡처
+- `104:2` Screen 5 — Result: desktop + mobile 캡처
+- `104:3` Screen 6 — Kickoff Dashboard: desktop + mobile 캡처
 
 ---
 

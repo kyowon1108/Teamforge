@@ -33,15 +33,20 @@ viewports: [desktop, mobile]   # 기본값: 둘 다
 
 ## 기본 페이지 목록 (전체 캡처 시)
 
-| Figma 페이지 | URL | 설명 |
-|-------------|-----|------|
-| Screen 1 — Login | `/login` | 로그인 |
-| Screen 2 — Dashboard | `/dev-preview?screen=dashboard-empty` | 대시보드 (빈 상태) |
-| Screen 2 — Dashboard | `/dev-preview?screen=dashboard-teams` | 대시보드 (팀 있음) |
-| Screen 3a — Team Create | `/dev-preview?screen=team-create` | 팀 생성 |
-| Screen 3b — Team Join | `/dev-preview?screen=team-join` | 팀 참가 |
+| Figma 페이지 ID | Figma 페이지명 | dev-preview URL | 설명 |
+|----------------|----------------|-----------------|------|
+| `21:9`  | Screen 1 — Login | `/dev-preview?screen=login` | 로그인 (Google/GitHub/Kakao 버튼) |
+| `21:10` | Screen 2 — Dashboard | `/dev-preview?screen=dashboard-empty` | 대시보드 빈 상태 |
+| `21:10` | Screen 2 — Dashboard | `/dev-preview?screen=dashboard-teams` | 대시보드 팀 있음 |
+| `21:11` | Screen 3 — Team Create / Join | `/dev-preview?screen=team-create` | 팀 생성 |
+| `21:11` | Screen 3 — Team Create / Join | `/dev-preview?screen=team-join` | 팀 참가 |
+| `40:2`  | Screen 4 — Survey | `/dev-preview?screen=survey-s1` ~ `survey-s6` | 설문 S1~S6 섹션 |
+| `104:2` | Screen 5 — Result | `/dev-preview?screen=result` | 개인 결과 레이더 차트 |
+| `104:3` | Screen 6 — Kickoff Dashboard | `/dev-preview?screen=kickoff-dashboard-progress` | 킥오프 대시보드 진행 중 |
+| `104:3` | Screen 6 — Kickoff Dashboard | `/dev-preview?screen=kickoff-dashboard-complete` | 킥오프 대시보드 완료 |
 
-인증 필요 화면은 반드시 `/dev-preview?screen=XXX` 경로로 우회한다.
+인증 필요 화면은 반드시 `/dev-preview?screen=XXX` 경로로 우회한다.  
+`/dev-preview?screen=login`은 미들웨어에서 인증 예외 처리됨 (middleware.ts 참조).
 
 ## 실행 절차
 
@@ -96,7 +101,7 @@ capture ID ↔ {url, viewport, figmaPageId} 매핑 테이블을 메모한다.
 osascript -e '
 tell application "Google Chrome"
   activate
-  open location "http://localhost:3002/URL#figmacapture=ID&figmaendpoint=https%3A%2F%2Fmcp.figma.com%2Fmcp%2Fcapture%2FID%2Fsubmit&figmadelay=2000"
+  open location "http://localhost:3000/URL#figmacapture=ID&figmaendpoint=https%3A%2F%2Fmcp.figma.com%2Fmcp%2Fcapture%2FID%2Fsubmit&figmadelay=2000"
   delay 0.5
   set bounds of front window to {0, 0, 1440, 900}
 end tell'
@@ -108,7 +113,7 @@ end tell'
 osascript -e '
 tell application "Google Chrome"
   activate
-  open location "http://localhost:3002/URL#figmacapture=ID&figmaendpoint=https%3A%2F%2Fmcp.figma.com%2Fmcp%2Fcapture%2FID%2Fsubmit&figmadelay=2000"
+  open location "http://localhost:3000/URL#figmacapture=ID&figmaendpoint=https%3A%2F%2Fmcp.figma.com%2Fmcp%2Fcapture%2FID%2Fsubmit&figmadelay=2000"
   delay 0.5
   set bounds of front window to {0, 0, 490, 900}
 end tell'
@@ -164,6 +169,6 @@ CHANGED_FILES: [apps/web/app/layout.tsx (임시 수정 후 복원)]
 - **직렬 처리 필수** — 병렬 탭 오픈 시 백그라운드 탭은 Visibility API로 throttle됨
 - 인증 필요 화면은 직접 URL 사용 금지 → dev-preview 경유 필수
 - layout.tsx의 Script는 작업 완료 즉시 제거 (프로덕션 번들에 포함 방지)
-- 로컬 서버(`localhost:3002` 또는 `3000`)가 실행 중이어야 함
+- 로컬 서버(`localhost:3000` 또는 `3000`)가 실행 중이어야 함
 - capture ID는 단일 사용(single-use) — 재사용 불가
 - **Playwright headless 사용 금지** — CORS로 mcp.figma.com POST 차단됨. macOS `osascript` + Chrome만 사용
