@@ -10,6 +10,9 @@ import Section3ProjectExp from '@/components/survey/sections/Section3ProjectExp'
 import Section4CollabStyle from '@/components/survey/sections/Section4CollabStyle';
 import Section5Availability from '@/components/survey/sections/Section5Availability';
 import Section6Portfolio from '@/components/survey/sections/Section6Portfolio';
+import Section7Capability from '@/components/survey/sections/Section7Capability';
+import Section8Collaboration from '@/components/survey/sections/Section8Collaboration';
+import Section9AIProfile from '@/components/survey/sections/Section9AIProfile';
 
 const SECTIONS = [
   { id: 1, title: '기본 정보', est: '~30초' },
@@ -18,6 +21,9 @@ const SECTIONS = [
   { id: 4, title: '협업 스타일', est: '~45초' },
   { id: 5, title: '가용 시간', est: '~30초' },
   { id: 6, title: '포트폴리오', est: '~30초' },
+  { id: 7, title: '시스템 블록 역할', est: '~90초' },
+  { id: 8, title: '협업 습관', est: '~30초' },
+  { id: 9, title: 'AI 활용 계획', est: '~60초' },
 ];
 
 interface Props {
@@ -61,6 +67,14 @@ function isSectionValid(section: number, answers: Record<string, unknown>): bool
       return answers.weeklyHours != null;
     case 6:
       return true;
+    case 7:
+      return Object.keys((answers.blockConfidence as Record<string, unknown>) ?? {}).length >= 5;
+    case 8:
+      return answers.collabChecklist !== undefined;
+    case 9: {
+      const aiProfile = answers.aiProfile as { preferences?: string[]; verificationLevel?: number } | undefined;
+      return (aiProfile?.preferences?.length ?? 0) >= 1 && aiProfile?.verificationLevel != null;
+    }
     default:
       return true;
   }
@@ -102,8 +116,10 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
     [answers, teamId],
   );
 
+  const TOTAL_SECTIONS = 9;
+
   const goNext = () => {
-    if (currentSection < 6) setCurrentSection((s) => s + 1);
+    if (currentSection < TOTAL_SECTIONS) setCurrentSection((s) => s + 1);
   };
 
   const goPrev = () => {
@@ -124,8 +140,8 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
   };
 
   const currentValid = isSectionValid(currentSection, answers);
-  const allSectionsValid = [1, 2, 3, 4, 5, 6].every((s) => isSectionValid(s, answers));
-  const progress = (currentSection / 6) * 100;
+  const allSectionsValid = [1, 2, 3, 4, 5, 6, 7, 8, 9].every((s) => isSectionValid(s, answers));
+  const progress = (currentSection / TOTAL_SECTIONS) * 100;
   const currentSectionMeta = SECTIONS[currentSection - 1]!;
 
   const renderSection = () => {
@@ -137,6 +153,9 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
       case 4: return <Section4CollabStyle {...props} />;
       case 5: return <Section5Availability {...props} />;
       case 6: return <Section6Portfolio {...props} />;
+      case 7: return <Section7Capability {...props} />;
+      case 8: return <Section8Collaboration {...props} />;
+      case 9: return <Section9AIProfile {...props} />;
       default: return null;
     }
   };
@@ -157,7 +176,7 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
               className="text-[13px]"
               style={{ color: 'var(--tf-fg-muted)' }}
             >
-              {currentSectionMeta.title} ({currentSection}/6)
+              {currentSectionMeta.title} ({currentSection}/{TOTAL_SECTIONS})
             </span>
             <span
               className="text-[12px] flex items-center gap-1"
@@ -202,7 +221,7 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
               role="progressbar"
               aria-valuenow={currentSection}
               aria-valuemin={1}
-              aria-valuemax={6}
+              aria-valuemax={TOTAL_SECTIONS}
               aria-label="설문 진행률"
             />
           </div>
@@ -281,7 +300,7 @@ export default function SurveyClient({ teamId, initialAnswers, initialSection = 
             <ChevronLeft className="w-4 h-4" /> 이전
           </button>
 
-          {currentSection < 6 ? (
+          {currentSection < TOTAL_SECTIONS ? (
             <button
               onClick={goNext}
               disabled={!currentValid}

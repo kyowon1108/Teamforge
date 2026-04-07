@@ -46,10 +46,52 @@ const Section6Schema = z.object({
   selfIntro: z.string().max(500).optional(),
 });
 
+// Section 7: 시스템 블록 자신감 (Layer B — Capability)
+export const SYSTEM_BLOCKS = [
+  'ui', 'api', 'db', 'auth', 'devops', 'testing', 'docs', 'pm', 'data', 'ai_feat', 'realtime',
+] as const;
+export type SystemBlock = (typeof SYSTEM_BLOCKS)[number];
+
+export const BlockConfidenceLevel = z.enum(['lead', 'contribute', 'learn', 'cant']);
+export type BlockConfidence = z.infer<typeof BlockConfidenceLevel>;
+
+const Section7Schema = z.object({
+  blockConfidence: z.record(z.enum(SYSTEM_BLOCKS), BlockConfidenceLevel).optional(),
+});
+
+// Section 8: 협업 체크리스트 (Layer C — Collaboration)
+const Section8Schema = z.object({
+  collabChecklist: z.object({
+    prReview: z.boolean(),
+    issueTracking: z.boolean(),
+    meetingNotes: z.boolean(),
+    codeReading: z.boolean(),
+    asyncResponse: z.boolean(),
+    conflictResolution: z.boolean(),
+  }).optional(),
+});
+
+// Section 9: AI 활용 프로파일 (Layer E — AI)
+export const AI_PREFERENCE_OPTIONS = [
+  'ideation', 'code_draft', 'debugging', 'docs', 'review', 'learning',
+] as const;
+
+const Section9Schema = z.object({
+  aiProfile: z.object({
+    preferences: z.array(z.enum(AI_PREFERENCE_OPTIONS)).min(1),
+    verificationLevel: z.number().int().min(1).max(3),
+    pairComfort: z.boolean(),
+    selfLeadBlocks: z.array(z.enum(SYSTEM_BLOCKS)),
+  }).optional(),
+});
+
 export const SurveyAnswersSchema = Section1Schema.merge(Section2Schema)
   .merge(Section3Schema)
   .merge(Section4Schema)
   .merge(Section5Schema)
-  .merge(Section6Schema);
+  .merge(Section6Schema)
+  .merge(Section7Schema)
+  .merge(Section8Schema)
+  .merge(Section9Schema);
 
 export type SurveyAnswers = z.infer<typeof SurveyAnswersSchema>;

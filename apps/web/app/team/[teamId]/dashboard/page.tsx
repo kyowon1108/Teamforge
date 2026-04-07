@@ -24,6 +24,10 @@ export interface TeamInsight {
   topAxes: string[];
   bottomAxis: string;
   roleDistribution: Record<string, number>;
+  blockCoverage?: Record<string, 'covered' | 'partial' | 'gap'>;
+  teamCollabScore?: number;
+  aiNeedBlocks?: string[];
+  teamRisks?: string[];
 }
 
 export interface KickoffStatusResponse {

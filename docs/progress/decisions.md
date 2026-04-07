@@ -256,6 +256,26 @@ This file keeps the currently effective working decisions in a compact format.
 
 **일지:** [260407_01](./260407_01-screen7-topic-decision.md)
 
+## KF-026 — 블록 신뢰도 레이어는 SYSTEM_BLOCKS × 4레벨 JSONB 구조, 마이그레이션 불필요
+
+**결론:** Section 7 블록 신뢰도는 SYSTEM_BLOCKS(11개 고정 블록) × 4레벨(lead/contribute/learn/cant) 매트릭스로 표현한다. 응답은 기존 JSONB `answers` 필드 안에 `blockConfidence` 키로 저장하며, Prisma 스키마 변경 및 마이그레이션이 필요 없다. 11개 블록 목록과 레벨 값은 `packages/contracts/src/jsonb/survey-answers.schema.ts`의 `SYSTEM_BLOCKS`, `BlockConfidenceLevel` 상수로 단일 관리한다.
+
+**이유:** 블록 정의는 제품 출시 전까지 변경될 수 있다. DB 컬럼화하면 블록 추가/삭제 시마다 마이그레이션이 필요하다. JSONB + 계약 레이어 스키마 검증 방식은 KF-009 원칙과 일관되며, 블록 목록 변경을 계약 파일 수정만으로 처리할 수 있다.
+
+**영향 범위:** `packages/contracts/src/jsonb/survey-answers.schema.ts`, `apps/web/components/survey/sections/Section7Capability.tsx`, `apps/api/src/survey/survey.service.ts` (_calcBlockProfile, VALID_BLOCKS)
+
+**일지:** [260407_04](./260407_04-survey-screen56-redesign.md)
+
+## KF-027 — 팀 협업 점수 = 멤버별 collabChecklist true 평균; blockCoverage = lead/partial/gap 분류
+
+**결론:** 팀 협업 성숙도 점수(`teamCollabScore`)는 제출된 각 멤버의 `collabChecklist` true 개수(0-6)의 평균값으로 계산한다. 팀 블록 커버리지(`blockCoverage`)는 블록별로 lead가 1인 이상이면 "covered", contribute만 있으면 "partial", 둘 다 없으면 "gap"으로 분류한다. 두 계산 모두 `kickoff.service.ts` `_buildTeamInsight()`에서 수행한다(KF-018 서비스 계층 단일 계산 원칙 준수).
+
+**이유:** 단순 평균/분류 방식은 계산 근거가 명확하고 클라이언트 노출 없이 서버에서 보호된다. blockCoverage 3단계 분류는 Screen 6 대시보드에서 팀 강점/공백을 직관적으로 시각화하기에 충분한 세분화다.
+
+**영향 범위:** `apps/api/src/kickoff/kickoff.service.ts` (_buildTeamInsight), `apps/web/app/team/[teamId]/dashboard/kickoff-dashboard-client.tsx` (BlockCoverageGrid, CollabMaturityBar), `apps/web/app/team/[teamId]/dashboard/page.tsx` (TeamInsight 인터페이스)
+
+**일지:** [260407_04](./260407_04-survey-screen56-redesign.md)
+
 ## KF-025 — Screen 5 역할 반응 값을 ok/burden/prefer_other 3종으로 확정
 
 **결론:** 기존 yes/somewhat/no 3종 반응 값을 `ok` / `burden` / `prefer_other` 로 교체한다. `prefer_other` 선택 시 선택적 자유 텍스트 필드(`preferOtherNote`, 최대 100자)를 함께 저장한다. `POST /api/teams/:teamId/survey/reaction` Body 스키마를 이에 맞게 변경하고, 기존 저장된 yes/somewhat/no 값은 API 계층에서 backward-compatible 매핑(yes→ok, somewhat→burden, no→prefer_other)으로 처리하거나 마이그레이션 스크립트를 작성한다.

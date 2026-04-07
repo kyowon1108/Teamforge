@@ -231,12 +231,21 @@ export class KickoffService implements OnApplicationBootstrap {
   private _buildTeamInsight(responses: { answers: unknown }[]) {
     const AXES = ['기획력', '기술력', '소통력', '추진력', '창의력', '성장력'] as const;
     type AxisKey = typeof AXES[number];
+    const SYSTEM_BLOCKS = ['ui','api','db','auth','devops','testing','docs','pm','data','ai_feat','realtime'] as const;
+    type BlockKey = typeof SYSTEM_BLOCKS[number];
 
     const totals: Record<AxisKey, number> = {
       기획력: 0, 기술력: 0, 소통력: 0, 추진력: 0, 창의력: 0, 성장력: 0,
     };
     const roleCounts: Record<string, number> = {};
     let validCount = 0;
+
+    // Block coverage accumulators
+    const blockLead = new Set<string>();
+    const blockContribute = new Set<string>();
+    let collabScoreSum = 0;
+    let collabScoreCount = 0;
+    const selfLeadBlocksAll = new Set<string>();
 
     for (const r of responses) {
       const parsed = SurveyAnswersSchema.safeParse(r.answers);
@@ -246,6 +255,28 @@ export class KickoffService implements OnApplicationBootstrap {
       const role = parsed.data.workArchetype;
       if (role) roleCounts[role] = (roleCounts[role] ?? 0) + 1;
       validCount++;
+
+      // Capability layer
+      const bc = parsed.data.blockConfidence as Record<string, string> | undefined;
+      if (bc) {
+        for (const [block, level] of Object.entries(bc)) {
+          if (level === 'lead') blockLead.add(block);
+          else if (level === 'contribute') blockContribute.add(block);
+        }
+      }
+
+      // Collaboration layer
+      const checklist = parsed.data.collabChecklist as Record<string, boolean> | undefined;
+      if (checklist) {
+        collabScoreSum += Object.values(checklist).filter(Boolean).length;
+        collabScoreCount++;
+      }
+
+      // AI layer
+      const aiProfile = parsed.data.aiProfile as { selfLeadBlocks?: string[] } | undefined;
+      for (const b of aiProfile?.selfLeadBlocks ?? []) {
+        selfLeadBlocksAll.add(b);
+      }
     }
 
     if (validCount === 0) return null;
@@ -258,7 +289,52 @@ export class KickoffService implements OnApplicationBootstrap {
     const topAxes = sorted.slice(0, 2).map(([name]) => name);
     const bottomAxis = sorted[sorted.length - 1]?.[0] ?? sorted[0]![0];
 
-    return { avgAxisScores, topAxes, bottomAxis, roleDistribution: roleCounts };
+    // Block coverage
+    const blockCoverage = Object.fromEntries(
+      SYSTEM_BLOCKS.map((block: BlockKey) => {
+        let coverage: 'covered' | 'partial' | 'gap';
+        if (blockLead.has(block)) coverage = 'covered';
+        else if (blockContribute.has(block)) coverage = 'partial';
+        else coverage = 'gap';
+        return [block, coverage];
+      }),
+    ) as Record<BlockKey, 'covered' | 'partial' | 'gap'>;
+
+    const teamCollabScore = collabScoreCount > 0 ? Math.round(collabScoreSum / collabScoreCount) : 0;
+
+    // AI need blocks: gap blocks that no one listed in selfLeadBlocks
+    const aiNeedBlocks = SYSTEM_BLOCKS.filter(
+      (block) => blockCoverage[block] === 'gap' && !selfLeadBlocksAll.has(block),
+    );
+
+    // Team risks (max 3)
+    const teamRisks: string[] = [];
+    const gapBlocks = SYSTEM_BLOCKS.filter((b) => blockCoverage[b] === 'gap');
+    if (gapBlocks.length > 0) {
+      const BLOCK_LABELS: Record<string, string> = {
+        ui: 'UI 구현', api: 'API 설계', db: 'DB 모델링', auth: '인증/권한',
+        devops: '배포/인프라', testing: '테스트/QA', docs: '문서화', pm: '일정/조율',
+        data: '데이터 처리', ai_feat: 'AI 기능', realtime: '실시간 기능',
+      };
+      teamRisks.push(`${gapBlocks.map((b) => BLOCK_LABELS[b] ?? b).slice(0, 3).join(', ')} 영역에 담당자가 없습니다`);
+    }
+    if (teamCollabScore < 3 && collabScoreCount > 0) {
+      teamRisks.push('팀 전반의 협업 습관이 낮아 조율 비용이 높을 수 있습니다');
+    }
+    if (aiNeedBlocks.length > 2) {
+      teamRisks.push(`${aiNeedBlocks.length}개 블록에서 AI 지원 계획이 필요합니다`);
+    }
+
+    return {
+      avgAxisScores,
+      topAxes,
+      bottomAxis,
+      roleDistribution: roleCounts,
+      blockCoverage,
+      teamCollabScore,
+      aiNeedBlocks,
+      teamRisks: teamRisks.slice(0, 3),
+    };
   }
 
   private _calcAxisScores(answers: SurveyAnswers) {

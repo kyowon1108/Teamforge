@@ -1,8 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowRight, Check, Shuffle, ThumbsUp, Trophy, TrendingUp } from 'lucide-react';
+import {
+  AlertCircle, ArrowRight, Check, Shuffle, ThumbsUp, Trophy, TrendingUp,
+  Code2, Server, Database, Shield, Terminal, TestTube2, FileText, Calendar,
+  BarChart2, Bot, Wifi, UserCheck, UserX, Sparkles,
+} from 'lucide-react';
+
+interface BlockProfile {
+  strong: string[];
+  weak: string[];
+}
+
+interface AISupportPlan {
+  primaryAreas: string[];
+  verificationLevel: number;
+  autonomousBlocks: string[];
+}
 
 interface ResultData {
   axisScores: {
@@ -20,6 +35,10 @@ interface ResultData {
   submittedAt: string | null;
   roleReaction: 'ok' | 'burden' | 'prefer_other' | null;
   roleReactionNote: string | null;
+  blockProfile?: BlockProfile;
+  roleGoodFit?: string[];
+  roleAvoid?: string[];
+  aiSupportPlan?: AISupportPlan | null;
 }
 
 interface Props {
@@ -35,6 +54,20 @@ const ROLE_MAP: Record<string, { label: string; description: string }> = {
   executor: { label: '실행자', description: '빠르게 구현하고 결과물을 만들어내는 능력이 강점이에요.' },
   coordinator: { label: '조율자', description: '팀원 간 소통을 원활히 하고 협업을 이끄는 역할이에요.' },
   documenter: { label: '기록자', description: '정보를 정리하고 지식을 체계적으로 관리하는 역할이에요.' },
+};
+
+const BLOCK_META: Record<string, { label: string; Icon: React.ElementType }> = {
+  ui: { label: 'UI 구현', Icon: Code2 },
+  api: { label: 'API 설계', Icon: Server },
+  db: { label: 'DB 모델링', Icon: Database },
+  auth: { label: '인증/권한', Icon: Shield },
+  devops: { label: '배포/인프라', Icon: Terminal },
+  testing: { label: '테스트/QA', Icon: TestTube2 },
+  docs: { label: '문서화', Icon: FileText },
+  pm: { label: '일정/조율', Icon: Calendar },
+  data: { label: '데이터 처리', Icon: BarChart2 },
+  ai_feat: { label: 'AI 기능', Icon: Bot },
+  realtime: { label: '실시간 기능', Icon: Wifi },
 };
 
 const CENTER = { x: 200, y: 200 };
@@ -445,7 +478,210 @@ export default function ResultClient({ teamId, data }: Props) {
           </div>
         )}
 
-        {/* 6. 하단 CTA */}
+        {/* 6. 시스템 블록 강점/약점 카드 */}
+        {data.blockProfile && (data.blockProfile.strong.length > 0 || data.blockProfile.weak.length > 0) && (
+          <div
+            className="rounded-xl p-4"
+            style={{ background: 'var(--tf-bg-layer-default)', border: '1px solid var(--tf-stroke-neutral)' }}
+          >
+            <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--tf-fg-default)' }}>
+              시스템 블록 역할
+            </h2>
+            {data.blockProfile.strong.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <UserCheck className="w-4 h-4 shrink-0" style={{ color: 'var(--tf-fg-positive)' }} />
+                  <span className="text-sm font-medium" style={{ color: 'var(--tf-fg-default)' }}>
+                    리드할 수 있는 영역
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {data.blockProfile.strong.map((block) => {
+                    const meta = BLOCK_META[block];
+                    if (!meta) return null;
+                    const { label, Icon } = meta;
+                    return (
+                      <span
+                        key={block}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border"
+                        style={{
+                          background: 'color-mix(in srgb, var(--tf-fg-positive) 10%, transparent)',
+                          color: 'var(--tf-fg-positive)',
+                          borderColor: 'var(--tf-stroke-positive)',
+                        }}
+                      >
+                        <Icon className="w-3 h-3" />
+                        {label}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {data.blockProfile.weak.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <UserX className="w-4 h-4 shrink-0" style={{ color: 'var(--tf-fg-subtle)' }} />
+                  <span className="text-sm font-medium" style={{ color: 'var(--tf-fg-default)' }}>
+                    보완이 필요한 영역
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {data.blockProfile.weak.map((block) => {
+                    const meta = BLOCK_META[block];
+                    if (!meta) return null;
+                    const { label, Icon } = meta;
+                    return (
+                      <span
+                        key={block}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border"
+                        style={{
+                          background: 'var(--tf-bg-layer-alt)',
+                          color: 'var(--tf-fg-subtle)',
+                          borderColor: 'var(--tf-stroke-neutral)',
+                        }}
+                      >
+                        <Icon className="w-3 h-3" />
+                        {label}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 7. 역할 적합도 카드 */}
+        {(data.roleGoodFit?.length || data.roleAvoid?.length) ? (
+          <div
+            className="rounded-xl p-4"
+            style={{ background: 'var(--tf-bg-layer-default)', border: '1px solid var(--tf-stroke-neutral)' }}
+          >
+            <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--tf-fg-default)' }}>
+              역할 적합도
+            </h2>
+            {data.roleGoodFit && data.roleGoodFit.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-medium mb-2" style={{ color: 'var(--tf-fg-muted)' }}>
+                  이번 프로젝트에서 맞는 역할
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {data.roleGoodFit.map((role) => (
+                    <span
+                      key={role}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+                      style={{
+                        background: 'color-mix(in srgb, var(--tf-bg-brand-solid) 12%, transparent)',
+                        color: 'var(--tf-bg-brand-solid)',
+                      }}
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {data.roleAvoid && data.roleAvoid.length > 0 && (
+              <div>
+                <p className="text-xs font-medium mb-2" style={{ color: 'var(--tf-fg-muted)' }}>
+                  피하면 좋은 역할
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {data.roleAvoid.map((role) => (
+                    <span
+                      key={role}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border"
+                      style={{
+                        color: 'var(--tf-fg-muted)',
+                        borderColor: 'var(--tf-stroke-neutral)',
+                      }}
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* 8. AI 지원 계획 카드 */}
+        {data.aiSupportPlan && (
+          <div
+            className="rounded-xl p-4"
+            style={{ background: 'var(--tf-bg-layer-default)', border: '1px solid var(--tf-stroke-neutral)' }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-5 h-5" style={{ color: 'var(--tf-fg-brand)' }} />
+              <h2 className="text-base font-semibold" style={{ color: 'var(--tf-fg-default)' }}>
+                AI 지원 계획
+              </h2>
+            </div>
+
+            {data.aiSupportPlan.primaryAreas.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-medium mb-2" style={{ color: 'var(--tf-fg-muted)' }}>
+                  AI가 도울 수 있는 영역
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {data.aiSupportPlan.primaryAreas.map((area) => (
+                    <span
+                      key={area}
+                      className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium"
+                      style={{
+                        background: 'color-mix(in srgb, var(--tf-fg-brand) 10%, transparent)',
+                        color: 'var(--tf-fg-brand)',
+                      }}
+                    >
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {data.aiSupportPlan.autonomousBlocks.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-medium mb-2" style={{ color: 'var(--tf-fg-muted)' }}>
+                  직접 리드 가능한 영역
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {data.aiSupportPlan.autonomousBlocks.map((block) => {
+                    const meta = BLOCK_META[block];
+                    if (!meta) return null;
+                    const { label, Icon } = meta;
+                    return (
+                      <span
+                        key={block}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border"
+                        style={{
+                          background: 'color-mix(in srgb, var(--tf-fg-positive) 10%, transparent)',
+                          color: 'var(--tf-fg-positive)',
+                          borderColor: 'var(--tf-stroke-positive)',
+                        }}
+                      >
+                        <Icon className="w-3 h-3" />
+                        {label}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--tf-fg-muted)' }}>AI 결과 검증 수준:</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--tf-fg-default)' }}>
+                {data.aiSupportPlan.verificationLevel === 1 && '검증 어려움 — AI 결과를 그대로 활용하는 편'}
+                {data.aiSupportPlan.verificationLevel === 2 && '일부 검증 — 주요 부분은 직접 확인'}
+                {data.aiSupportPlan.verificationLevel === 3 && '직접 검증 — AI 결과를 반드시 직접 확인'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* 9. 하단 CTA */}
         <button
           onClick={() => router.push(`/team/${teamId}/dashboard`)}
           className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90"

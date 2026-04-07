@@ -155,6 +155,14 @@ export default function DevPreviewPage({
             submittedAt: '2026-04-06T14:30:00Z',
             roleReaction: null,
             roleReactionNote: null,
+            blockProfile: { strong: ['api', 'db', 'auth'], weak: ['devops', 'testing'] },
+            roleGoodFit: ['아키텍트', '시스템 설계자', 'AI/데이터 엔지니어'],
+            roleAvoid: ['인프라 담당'],
+            aiSupportPlan: {
+              primaryAreas: ['코드 초안', '디버깅', '코드 리뷰'],
+              verificationLevel: 3,
+              autonomousBlocks: ['api', 'db'],
+            },
           }}
         />
       </div>
@@ -207,6 +215,17 @@ export default function DevPreviewPage({
               topAxes: ['기술력', '성장력'],
               bottomAxis: '창의력',
               roleDistribution: { architect: 2, executor: 1, coordinator: 1 },
+              blockCoverage: {
+                ui: 'covered', api: 'covered', db: 'covered', auth: 'partial',
+                devops: 'gap', testing: 'gap', docs: 'partial', pm: 'covered',
+                data: 'partial', ai_feat: 'gap', realtime: 'gap',
+              },
+              teamCollabScore: 4,
+              aiNeedBlocks: ['devops', 'testing', 'ai_feat', 'realtime'],
+              teamRisks: [
+                '배포/인프라, 테스트/QA 영역에 담당자가 없습니다',
+                '4개 블록에서 AI 지원 계획이 필요합니다',
+              ],
             },
           }}
         />

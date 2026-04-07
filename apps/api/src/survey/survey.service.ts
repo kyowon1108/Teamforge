@@ -165,7 +165,7 @@ export class SurveyService {
 
     const rawAnswers = record.answers as Record<string, unknown>;
     const parsed = SurveyAnswersSchema.safeParse(rawAnswers);
-    const answers: SurveyAnswers = parsed.success ? parsed.data : (rawAnswers as SurveyAnswers);
+    const answers: SurveyAnswers = parsed.success ? parsed.data : ({} as SurveyAnswers);
 
     const axisScores = this.calculateAxisScores(answers);
 
@@ -185,6 +185,19 @@ export class SurveyService {
       ? (archetypeRoleMap[answers.workArchetype] ?? null)
       : null;
 
+    // Block profile (Capability layer)
+    const blockProfile = this._calcBlockProfile(answers);
+
+    // Role fit (workArchetype + strong blocks)
+    const roleGoodFit = this._calcRoleGoodFit(answers.workArchetype, blockProfile.strong);
+    const roleAvoid = this._calcRoleAvoid(answers);
+
+    // Collaboration score
+    const collabScore = this._calcCollabScore(answers);
+
+    // AI support plan
+    const aiSupportPlan = this._calcAISupportPlan(answers);
+
     return {
       axisScores,
       strengths,
@@ -194,6 +207,11 @@ export class SurveyService {
       submittedAt: record.submittedAt?.toISOString() ?? null,
       roleReaction: record.roleReaction ?? null,
       roleReactionNote: record.roleReactionNote ?? null,
+      blockProfile,
+      roleGoodFit,
+      roleAvoid,
+      collabScore,
+      aiSupportPlan,
     };
   }
 
@@ -322,6 +340,98 @@ export class SurveyService {
     );
 
     return { 기획력, 기술력, 소통력, 추진력, 창의력, 성장력 };
+  }
+
+  private readonly VALID_BLOCKS = new Set([
+    'ui', 'api', 'db', 'auth', 'devops', 'testing', 'docs', 'pm', 'data', 'ai_feat', 'realtime',
+  ]);
+
+  private _calcBlockProfile(answers: SurveyAnswers): { strong: string[]; weak: string[] } {
+    const blockConfidence = answers.blockConfidence as Record<string, string> | undefined;
+    if (!blockConfidence) return { strong: [], weak: [] };
+
+    const strong: string[] = [];
+    const weak: string[] = [];
+    for (const [block, level] of Object.entries(blockConfidence)) {
+      if (!this.VALID_BLOCKS.has(block)) continue;
+      if (level === 'lead' || level === 'contribute') strong.push(block);
+      else if (level === 'learn' || level === 'cant') weak.push(block);
+    }
+    return { strong: strong.slice(0, 4), weak: weak.slice(0, 4) };
+  }
+
+  private _calcRoleGoodFit(workArchetype: string | undefined, strongBlocks: string[]): string[] {
+    const roles: string[] = [];
+    const archetypeMap: Record<string, string[]> = {
+      initiator: ['팀 리더', '기획자'],
+      architect: ['아키텍트', '시스템 설계자'],
+      executor: ['개발자', '풀스택 엔지니어'],
+      coordinator: ['PM', '코디네이터'],
+      documenter: ['문서화 담당', '온보딩 관리자'],
+    };
+    if (workArchetype && archetypeMap[workArchetype]) {
+      roles.push(...archetypeMap[workArchetype]!);
+    }
+    // block-based role additions
+    if (strongBlocks.includes('devops') || strongBlocks.includes('auth')) roles.push('인프라 담당');
+    if (strongBlocks.includes('ai_feat') || strongBlocks.includes('data')) roles.push('AI/데이터 엔지니어');
+    if (strongBlocks.includes('testing')) roles.push('QA 담당');
+    // deduplicate
+    return [...new Set(roles)].slice(0, 3);
+  }
+
+  private _calcRoleAvoid(answers: SurveyAnswers): string[] {
+    const blockConfidence = answers.blockConfidence as Record<string, string> | undefined;
+    if (!blockConfidence) return [];
+
+    const cantBlocks = Object.entries(blockConfidence)
+      .filter(([block, level]) => this.VALID_BLOCKS.has(block) && level === 'cant')
+      .map(([block]) => block);
+
+    const avoidRoles: string[] = [];
+    if (cantBlocks.includes('devops')) avoidRoles.push('인프라 담당');
+    if (cantBlocks.includes('pm')) avoidRoles.push('PM/기획');
+    if (cantBlocks.includes('ai_feat') && cantBlocks.includes('data')) avoidRoles.push('AI/데이터 담당');
+    if (cantBlocks.includes('testing')) avoidRoles.push('QA 담당');
+    if (cantBlocks.includes('docs')) avoidRoles.push('문서화 담당');
+
+    return [...new Set(avoidRoles)].slice(0, 2);
+  }
+
+  private _calcCollabScore(answers: SurveyAnswers): number {
+    const checklist = answers.collabChecklist as Record<string, boolean> | undefined;
+    if (!checklist) return 0;
+    return Object.values(checklist).filter(Boolean).length;
+  }
+
+  private _calcAISupportPlan(answers: SurveyAnswers): {
+    primaryAreas: string[];
+    verificationLevel: number;
+    autonomousBlocks: string[];
+  } | null {
+    const aiProfile = answers.aiProfile as {
+      preferences?: string[];
+      verificationLevel?: number;
+      pairComfort?: boolean;
+      selfLeadBlocks?: string[];
+    } | undefined;
+
+    if (!aiProfile) return null;
+
+    const AI_LABEL_MAP: Record<string, string> = {
+      ideation: '아이디어 정리',
+      code_draft: '코드 초안',
+      debugging: '디버깅',
+      docs: '문서 정리',
+      review: '코드 리뷰',
+      learning: '학습 보조',
+    };
+
+    return {
+      primaryAreas: (aiProfile.preferences ?? []).map((p) => AI_LABEL_MAP[p] ?? '기타'),
+      verificationLevel: aiProfile.verificationLevel ?? 1,
+      autonomousBlocks: aiProfile.selfLeadBlocks ?? [],
+    };
   }
 
   /**

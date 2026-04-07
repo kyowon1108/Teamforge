@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Check, Clock, Minus, Users, ChevronRight, TrendingUp, Trophy } from 'lucide-react';
+import { Check, Clock, Minus, Users, ChevronRight, TrendingUp, Trophy, AlertTriangle, Bot } from 'lucide-react';
 import type { KickoffStatusResponse, KickoffMember, TeamInsight } from './page';
 
 interface Props {
@@ -138,6 +138,12 @@ const ROLE_LABEL_MAP: Record<string, string> = {
   coordinator: '조율자', documenter: '기록자',
 };
 
+const BLOCK_LABELS: Record<string, string> = {
+  ui: 'UI 구현', api: 'API 설계', db: 'DB 모델링', auth: '인증/권한',
+  devops: '배포/인프라', testing: '테스트/QA', docs: '문서화', pm: '일정/조율',
+  data: '데이터 처리', ai_feat: 'AI 기능', realtime: '실시간 기능',
+};
+
 function TeamInsightPanel({ insight }: { insight: TeamInsight }) {
   const polygonPoints = AXES.map((axis, i) => {
     const pt = radarPoint(insight.avgAxisScores[axis], i);
@@ -246,6 +252,111 @@ function TeamInsightPanel({ insight }: { insight: TeamInsight }) {
           )}
         </div>
       </div>
+
+      {/* 블록 커버리지 */}
+      {insight.blockCoverage && Object.keys(insight.blockCoverage).length > 0 && (
+        <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--tf-stroke-neutral)' }}>
+          <span className="text-xs font-medium" style={{ color: 'var(--tf-fg-muted)' }}>시스템 블록 커버리지</span>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {Object.entries(insight.blockCoverage).map(([block, coverage]) => {
+              const coverageStyle = {
+                covered: { bg: 'color-mix(in srgb, var(--tf-fg-positive) 12%, transparent)', color: 'var(--tf-fg-positive)', border: 'var(--tf-stroke-positive)' },
+                partial: { bg: 'color-mix(in srgb, var(--tf-fg-caution) 12%, transparent)', color: 'var(--tf-fg-caution)', border: 'var(--tf-stroke-caution)' },
+                gap: { bg: 'color-mix(in srgb, var(--tf-fg-negative) 10%, transparent)', color: 'var(--tf-fg-negative)', border: 'var(--tf-stroke-negative)' },
+              }[coverage] ?? { bg: 'transparent', color: 'var(--tf-fg-muted)', border: 'var(--tf-stroke-neutral)' };
+              return (
+                <span
+                  key={block}
+                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border"
+                  style={{ background: coverageStyle.bg, color: coverageStyle.color, borderColor: coverageStyle.border }}
+                >
+                  {BLOCK_LABELS[block] ?? block}
+                </span>
+              );
+            })}
+          </div>
+          <div className="flex gap-3 mt-2">
+            {[
+              { key: 'covered', label: '커버됨', color: 'var(--tf-fg-positive)' },
+              { key: 'partial', label: '일부', color: 'var(--tf-fg-caution)' },
+              { key: 'gap', label: '공백', color: 'var(--tf-fg-negative)' },
+            ].map(({ key, label, color }) => (
+              <span key={key} className="flex items-center gap-1 text-xs" style={{ color }}>
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: color }} />
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 협업 성숙도 */}
+      {insight.teamCollabScore !== undefined && (
+        <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--tf-stroke-neutral)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium" style={{ color: 'var(--tf-fg-muted)' }}>협업 습관 성숙도</span>
+            <span className="text-xs font-semibold" style={{ color: 'var(--tf-fg-default)' }}>
+              {insight.teamCollabScore}/6
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--tf-stroke-neutral)' }}>
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${(insight.teamCollabScore / 6) * 100}%`,
+                background: insight.teamCollabScore >= 4
+                  ? 'var(--tf-fg-positive)'
+                  : insight.teamCollabScore >= 2
+                  ? 'var(--tf-fg-caution)'
+                  : 'var(--tf-fg-warning)',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* AI 지원 필요 영역 */}
+      {insight.aiNeedBlocks && insight.aiNeedBlocks.length > 0 && (
+        <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--tf-stroke-neutral)' }}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Bot className="w-3.5 h-3.5" style={{ color: 'var(--tf-fg-brand)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--tf-fg-muted)' }}>AI 지원 계획 필요</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {insight.aiNeedBlocks.map((block) => (
+              <span
+                key={block}
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs border"
+                style={{
+                  background: 'color-mix(in srgb, var(--tf-fg-brand) 10%, transparent)',
+                  color: 'var(--tf-fg-brand)',
+                  borderColor: 'var(--tf-stroke-brand)',
+                }}
+              >
+                {BLOCK_LABELS[block] ?? block}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 팀 리스크 */}
+      {insight.teamRisks && insight.teamRisks.length > 0 && (
+        <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--tf-stroke-neutral)' }}>
+          <div className="flex items-center gap-1.5 mb-2">
+            <AlertTriangle className="w-3.5 h-3.5" style={{ color: 'var(--tf-fg-warning)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--tf-fg-muted)' }}>팀 리스크</span>
+          </div>
+          <ul className="space-y-1">
+            {insight.teamRisks.map((risk, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="mt-1.5 w-1 h-1 rounded-full shrink-0" style={{ background: 'var(--tf-fg-warning)' }} />
+                <span className="text-xs" style={{ color: 'var(--tf-fg-muted)' }}>{risk}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
