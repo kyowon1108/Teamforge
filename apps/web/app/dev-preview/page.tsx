@@ -140,30 +140,71 @@ export default function DevPreviewPage({
     );
   }
 
+  const MOCK_RESULT_DATA = {
+    axisScores: { 기획력: 72, 기술력: 88, 소통력: 60, 추진력: 78, 창의력: 55, 성장력: 90 },
+    strengths: ['기술력', '성장력'],
+    growthAreas: ['창의력', '소통력'],
+    suggestedRole: 'architect',
+    submitted: true,
+    submittedAt: '2026-04-06T14:30:00Z',
+    roleReaction: null as null,
+    roleReactionNote: null as null,
+    blockProfile: { strong: ['api', 'db', 'auth'], weak: ['devops', 'testing'] },
+    roleGoodFit: ['아키텍트', '시스템 설계자', 'AI/데이터 엔지니어'],
+    roleAvoid: ['인프라 담당'],
+    aiSupportPlan: {
+      primaryAreas: ['코드 초안', '디버깅', '코드 리뷰'],
+      verificationLevel: 3,
+      autonomousBlocks: ['api', 'db'],
+    },
+  };
+
+  const MOCK_TEAM_MEMBERS = [
+    { userId: 'u1', name: '이교원', image: null, role: 'leader' as const, submitted: true, confirmedRole: null, confirmedAt: null },
+    { userId: 'u2', name: '김민준', image: null, role: 'member' as const, submitted: true, confirmedRole: '백엔드', confirmedAt: '2026-04-07T12:00:00Z' },
+    { userId: 'u3', name: '박서연', image: null, role: 'member' as const, submitted: true, confirmedRole: null, confirmedAt: null },
+    { userId: 'u4', name: '최지훈', image: null, role: 'member' as const, submitted: false, confirmedRole: null, confirmedAt: null },
+  ];
+
   if (screen === 'result') {
     return (
       <div>
         <AppHeader userName={MOCK_USER_NAME} />
         <ResultClient
           teamId="mock-team-001"
-          data={{
-            axisScores: { 기획력: 72, 기술력: 88, 소통력: 60, 추진력: 78, 창의력: 55, 성장력: 90 },
-            strengths: ['기술력', '성장력'],
-            growthAreas: ['창의력', '소통력'],
-            suggestedRole: 'architect',
-            submitted: true,
-            submittedAt: '2026-04-06T14:30:00Z',
-            roleReaction: null,
-            roleReactionNote: null,
-            blockProfile: { strong: ['api', 'db', 'auth'], weak: ['devops', 'testing'] },
-            roleGoodFit: ['아키텍트', '시스템 설계자', 'AI/데이터 엔지니어'],
-            roleAvoid: ['인프라 담당'],
-            aiSupportPlan: {
-              primaryAreas: ['코드 초안', '디버깅', '코드 리뷰'],
-              verificationLevel: 3,
-              autonomousBlocks: ['api', 'db'],
-            },
-          }}
+          data={MOCK_RESULT_DATA}
+        />
+      </div>
+    );
+  }
+
+  if (screen === 'result-leader') {
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <ResultClient
+          teamId="mock-team-001"
+          myResult={{ ...MOCK_RESULT_DATA, myRole: 'leader' as const }}
+          teamMembers={MOCK_TEAM_MEMBERS}
+          memberResult={null}
+          viewingUserId={null}
+          myUserId="u1"
+        />
+      </div>
+    );
+  }
+
+  if (screen === 'result-member-confirmed') {
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <ResultClient
+          teamId="mock-team-001"
+          myResult={{ ...MOCK_RESULT_DATA, myRole: 'member' as const }}
+          teamMembers={null}
+          memberResult={null}
+          viewingUserId={null}
+          initialFinalRole="백엔드"
         />
       </div>
     );

@@ -158,8 +158,11 @@ export class SurveyService {
         strengths: [],
         growthAreas: [],
         suggestedRole: null,
+        myRole: membership.role as 'leader' | 'member',
         submitted: false,
         submittedAt: null,
+        roleReaction: null,
+        roleReactionNote: null,
       };
     }
 
@@ -167,6 +170,83 @@ export class SurveyService {
     const parsed = SurveyAnswersSchema.safeParse(rawAnswers);
     const answers: SurveyAnswers = parsed.success ? parsed.data : ({} as SurveyAnswers);
 
+    const resultData = this._extractResultData(answers);
+
+    return {
+      ...resultData,
+      myRole: membership.role as 'leader' | 'member',
+      submitted: record.submitted,
+      submittedAt: record.submittedAt?.toISOString() ?? null,
+      roleReaction: record.roleReaction ?? null,
+      roleReactionNote: record.roleReactionNote ?? null,
+    };
+  }
+
+  /**
+   * GET /api/teams/:teamId/survey/result/:userId
+   * Screen 5 — 팀장이 특정 팀원의 결과 열람 (leader only, read-only)
+   */
+  async getMemberResult(teamId: string, requestingUserId: string, targetUserId: string) {
+    const requesterMembership = await this.requireMembership(teamId, requestingUserId);
+
+    if (requesterMembership.role !== 'leader') {
+      throw new ForbiddenException({
+        code: 'LEADER_ONLY',
+        message: '팀장만 팀원의 결과를 열람할 수 있습니다',
+      });
+    }
+
+    const targetMembership = await this.prisma.teamMembership.findUnique({
+      where: { teamId_userId: { teamId, userId: targetUserId } },
+      include: { user: { select: { name: true, email: true } } },
+    });
+
+    if (!targetMembership) {
+      throw new NotFoundException({
+        code: 'MEMBERSHIP_NOT_FOUND',
+        message: '해당 팀의 멤버가 아닙니다',
+      });
+    }
+
+    if (targetMembership.role === 'observer') {
+      throw new ForbiddenException({
+        code: 'OBSERVER_FORBIDDEN',
+        message: '옵저버는 설문 결과 조회 대상이 아닙니다',
+      });
+    }
+
+    const record = await this.prisma.surveyResponse.findUnique({
+      where: { teamId_userId: { teamId, userId: targetUserId } },
+    });
+
+    if (!record || !record.submitted) {
+      throw new NotFoundException({
+        code: 'SURVEY_NOT_SUBMITTED',
+        message: '아직 설문을 제출하지 않은 팀원입니다',
+      });
+    }
+
+    const rawAnswers = record.answers as Record<string, unknown>;
+    const parsed = SurveyAnswersSchema.safeParse(rawAnswers);
+    const answers: SurveyAnswers = parsed.success ? parsed.data : ({} as SurveyAnswers);
+
+    const resultData = this._extractResultData(answers);
+    const targetUser = targetMembership.user;
+
+    return {
+      ...resultData,
+      targetUserName: targetUser.name ?? targetUser.email,
+      submitted: record.submitted,
+      submittedAt: record.submittedAt?.toISOString() ?? null,
+      roleReaction: record.roleReaction ?? null,
+      roleReactionNote: record.roleReactionNote ?? null,
+    };
+  }
+
+  /**
+   * 설문 결과 계산 로직 (getMyResult / getMemberResult 공통)
+   */
+  private _extractResultData(answers: SurveyAnswers) {
     const axisScores = this.calculateAxisScores(answers);
 
     const entries = Object.entries(axisScores) as [string, number][];
@@ -185,17 +265,10 @@ export class SurveyService {
       ? (archetypeRoleMap[answers.workArchetype] ?? null)
       : null;
 
-    // Block profile (Capability layer)
     const blockProfile = this._calcBlockProfile(answers);
-
-    // Role fit (workArchetype + strong blocks)
     const roleGoodFit = this._calcRoleGoodFit(answers.workArchetype, blockProfile.strong);
     const roleAvoid = this._calcRoleAvoid(answers);
-
-    // Collaboration score
     const collabScore = this._calcCollabScore(answers);
-
-    // AI support plan
     const aiSupportPlan = this._calcAISupportPlan(answers);
 
     return {
@@ -203,10 +276,6 @@ export class SurveyService {
       strengths,
       growthAreas,
       suggestedRole,
-      submitted: true,
-      submittedAt: record.submittedAt?.toISOString() ?? null,
-      roleReaction: record.roleReaction ?? null,
-      roleReactionNote: record.roleReactionNote ?? null,
       blockProfile,
       roleGoodFit,
       roleAvoid,

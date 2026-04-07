@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -50,6 +51,7 @@ export class SurveyController {
   /**
    * GET /api/teams/:teamId/survey/result/me
    * Screen 5 — 내 설문 결과 (레이더 차트 6축 점수)
+   * 반드시 result/:userId 보다 먼저 선언되어야 NestJS 라우팅 충돌 방지
    */
   @Get('result/me')
   async getMyResult(
@@ -57,6 +59,19 @@ export class SurveyController {
     @CurrentUser() user: ExchangeTokenPayload,
   ) {
     return this.surveyService.getMyResult(teamId, user.sub);
+  }
+
+  /**
+   * GET /api/teams/:teamId/survey/result/:userId
+   * Screen 5 — 팀장이 특정 팀원의 결과 열람 (leader only, read-only)
+   */
+  @Get('result/:userId')
+  async getMemberResult(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) targetUserId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+  ) {
+    return this.surveyService.getMemberResult(teamId, user.sub, targetUserId);
   }
 
   /**

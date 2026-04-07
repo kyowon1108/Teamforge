@@ -295,3 +295,22 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `apps/api/src/survey/survey.service.ts`, `apps/web/app/team/[teamId]/result/result-client.tsx`, `packages/contracts/src/jsonb/` (reaction 스키마)
 
 **일지:** [260407_02](./260407_02-screen5-role-reaction.md)
+
+## KF-029 — Screen 5 팀장 열람 URL은 쿼리 파라미터 방식, 역할 확정은 TeamMembership 컬럼 확장
+
+**결론:** 팀장의 팀원 결과 열람 URL 구조를 `?view=member&userId=[memberId]` 쿼리 파라미터 방식으로 확정한다. 서버 컴포넌트에서 role이 `leader`인지 확인 후 렌더하며, 팀원이 직접 접근 시 본인 결과로 silently redirect한다. 역할 확정(`finalRole`)은 별도 테이블 없이 TeamMembership에 confirmedRole/confirmedAt/confirmedBy 컬럼을 추가하는 방식으로 구현 완료. finalRole 9개 옵션은 actualRoles 설문 옵션과 동일. finalRole 데이터는 Screen 10 Contract Gate에서 역할 배정 표로 참조된다.
+
+**구현된 엔드포인트:**
+- `GET /api/teams/:teamId/survey/result/:userId` — leader only, 팀원 설문 결과 열람 (ParseUUIDPipe)
+- `GET /api/teams/:teamId/roles/me` — 본인 확정 역할 조회
+- `POST /api/teams/:teamId/roles/finalize` — 팀원 역할 확정 (leader only, last-write-wins)
+
+**실시간 반영:** Socket.io 미도입 시기에는 FinalizedRoleBadge 컴포넌트에서 30초 폴링으로 팀원 화면에 반영.
+
+**이유:** 팀원 결과 열람에 별도 경로(`/result/[userId]`)를 두면 layout 공유 경계와 보안 guard 적용 범위가 복잡해진다. 쿼리 파라미터 방식은 동일 page.tsx에서 서버 컴포넌트 레벨 role 확인을 재사용할 수 있어 구현이 단순하다.
+
+**연관:** KF-025 (roleReaction ok/burden/prefer_other), Screen 10 Contract Gate
+
+**영향 범위:** `apps/api/prisma/schema.prisma`, `packages/contracts/src/roles/role-finalize.schema.ts`, `apps/api/src/survey/survey.service.ts`, `apps/api/src/survey/survey.controller.ts`, `apps/api/src/kickoff/kickoff.service.ts`, `apps/api/src/kickoff/kickoff.controller.ts`, `apps/web/app/team/[teamId]/result/page.tsx`, `apps/web/app/team/[teamId]/result/result-client.tsx`, `apps/web/components/result/`
+
+**일지:** [260407_07](./260407_07-screen5-persona-view.md)

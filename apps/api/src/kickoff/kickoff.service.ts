@@ -155,6 +155,96 @@ export class KickoffService implements OnApplicationBootstrap {
   // ---------------------------------------------------------------------------
 
   /**
+   * GET /api/teams/:teamId/kickoff/members
+   * 팀원 목록 + 설문 제출 상태 + confirmedRole (leader only)
+   */
+  async getTeamMembersForLeader(teamId: string, userId: string) {
+    const membership = await this.requireMembership(teamId, userId);
+
+    if (membership.role !== 'leader') {
+      throw new ForbiddenException({
+        code: 'LEADER_ONLY',
+        message: '팀장만 접근할 수 있습니다',
+      });
+    }
+
+    const memberships = await this.prisma.teamMembership.findMany({
+      where: { teamId },
+      include: { user: { select: { id: true, name: true, email: true, image: true } } },
+      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    const surveyResponses = await this.prisma.surveyResponse.findMany({
+      where: { teamId },
+      select: { userId: true, submitted: true },
+    });
+    const submittedSet = new Set(surveyResponses.filter((r) => r.submitted).map((r) => r.userId));
+
+    return memberships.map((m) => ({
+      userId: m.userId,
+      name: m.user.name ?? m.user.email,
+      image: m.user.image,
+      role: m.role,
+      submitted: m.role === 'observer' ? null : submittedSet.has(m.userId),
+      confirmedRole: m.confirmedRole ?? null,
+      confirmedAt: m.confirmedAt?.toISOString() ?? null,
+    }));
+  }
+
+  /**
+   * GET /api/teams/:teamId/kickoff/roles/me
+   * 본인 확정 역할 조회 (폴링용)
+   */
+  async getMyFinalizedRole(teamId: string, userId: string) {
+    const membership = await this.requireMembership(teamId, userId);
+
+    return {
+      finalRole: membership.confirmedRole ?? null,
+      finalizedAt: membership.confirmedAt?.toISOString() ?? null,
+    };
+  }
+
+  /**
+   * POST /api/teams/:teamId/kickoff/roles/finalize
+   * 역할 확정 (leader only)
+   */
+  async finalizeRole(teamId: string, leaderId: string, targetUserId: string, finalRole: string) {
+    const leaderMembership = await this.requireMembership(teamId, leaderId);
+
+    if (leaderMembership.role !== 'leader') {
+      throw new ForbiddenException({
+        code: 'LEADER_ONLY',
+        message: '팀장만 역할을 확정할 수 있습니다',
+      });
+    }
+
+    const targetMembership = await this.prisma.teamMembership.findUnique({
+      where: { teamId_userId: { teamId, userId: targetUserId } },
+    });
+
+    if (!targetMembership) {
+      throw new NotFoundException({
+        code: 'MEMBERSHIP_NOT_FOUND',
+        message: '해당 팀의 멤버가 아닙니다',
+      });
+    }
+
+    if (targetMembership.role === 'observer') {
+      throw new ForbiddenException({
+        code: 'OBSERVER_FORBIDDEN',
+        message: '옵저버는 역할 확정 대상이 아닙니다',
+      });
+    }
+
+    await this.prisma.teamMembership.update({
+      where: { teamId_userId: { teamId, userId: targetUserId } },
+      data: { confirmedRole: finalRole, confirmedAt: new Date(), confirmedBy: leaderId },
+    });
+
+    return { success: true };
+  }
+
+  /**
    * GET /api/teams/:teamId/kickoff/status
    * Screen 6 — 팀 킥오프 현황 조회
    */

@@ -12,6 +12,7 @@ import {
 import type { Response } from 'express';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { ExchangeTokenPayload } from '@teamforge/contracts';
+import { FinalizeRoleBodySchema } from '@teamforge/contracts';
 import { KickoffService } from './kickoff.service';
 import { ParseTeamIdPipe } from '../common/parse-team-id.pipe';
 
@@ -34,6 +35,49 @@ export class KickoffController {
     @CurrentUser() user: ExchangeTokenPayload,
   ) {
     return this.kickoffService.getKickoffStatus(teamId, user.sub);
+  }
+
+  /**
+   * GET /api/teams/:teamId/kickoff/members
+   * 팀원 목록 + 설문 제출 상태 + confirmedRole (leader only)
+   */
+  @Get('members')
+  async getTeamMembers(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+  ) {
+    return this.kickoffService.getTeamMembersForLeader(teamId, user.sub);
+  }
+
+  /**
+   * GET /api/teams/:teamId/kickoff/roles/me
+   * 본인 확정 역할 조회 (30초 폴링용)
+   */
+  @Get('roles/me')
+  async getMyFinalizedRole(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+  ) {
+    return this.kickoffService.getMyFinalizedRole(teamId, user.sub);
+  }
+
+  /**
+   * POST /api/teams/:teamId/kickoff/roles/finalize
+   * 역할 확정 (leader only)
+   * Body: { userId: string, finalRole: FinalRoleOption }
+   */
+  @Post('roles/finalize')
+  @HttpCode(HttpStatus.OK)
+  async finalizeRole(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+    @Body() body: unknown,
+  ) {
+    const parsed = FinalizeRoleBodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({ code: 'INVALID_BODY', message: '잘못된 요청 형식입니다' });
+    }
+    return this.kickoffService.finalizeRole(teamId, user.sub, parsed.data.userId, parsed.data.finalRole);
   }
 }
 
