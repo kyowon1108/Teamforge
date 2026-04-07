@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Trophy, TrendingUp } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, Shuffle, ThumbsUp, Trophy, TrendingUp } from 'lucide-react';
 
 interface ResultData {
   axisScores: {
@@ -17,6 +18,8 @@ interface ResultData {
   suggestedRole: string | null;
   submitted: boolean;
   submittedAt: string | null;
+  roleReaction: 'ok' | 'burden' | 'prefer_other' | null;
+  roleReactionNote: string | null;
 }
 
 interface Props {
@@ -88,6 +91,36 @@ function formatDate(iso: string | null): string {
 export default function ResultClient({ teamId, data }: Props) {
   const router = useRouter();
   const { axisScores, strengths, growthAreas, suggestedRole, submittedAt } = data;
+
+  const [roleReaction, setRoleReaction] = useState<'ok' | 'burden' | 'prefer_other' | null>(data.roleReaction);
+  const [roleReactionNote, setRoleReactionNote] = useState(data.roleReactionNote ?? '');
+  const [showNoteInput, setShowNoteInput] = useState(data.roleReaction === 'prefer_other');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reactionError, setReactionError] = useState<string | null>(null);
+
+  async function handleRoleReact(value: 'ok' | 'burden' | 'prefer_other') {
+    setShowNoteInput(value === 'prefer_other');
+    setRoleReaction(value);
+    setReactionError(null);
+    setIsSubmitting(true);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      const res = await fetch(`${apiBase}/api/teams/${teamId}/survey/role-reaction`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reaction: value,
+          note: value === 'prefer_other' ? roleReactionNote || undefined : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error('API error');
+    } catch {
+      setReactionError('저장에 실패했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   const role = suggestedRole ? (ROLE_MAP[suggestedRole] ?? null) : null;
   const dataPoints = buildPolygonPoints(axisScores);
@@ -335,9 +368,80 @@ export default function ResultClient({ teamId, data }: Props) {
                 {role.label}
               </span>
             </div>
-            <p className="text-sm" style={{ color: 'var(--tf-fg-muted)' }}>
+            <p className="text-sm mb-4" style={{ color: 'var(--tf-fg-muted)' }}>
               {role.description}
             </p>
+
+            {/* 역할 반응 버튼 섹션 */}
+            <div>
+              <p className="text-sm font-medium mb-2" style={{ color: 'var(--tf-fg-default)' }}>
+                이 역할이 어떻게 느껴지나요?
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {(
+                  [
+                    { value: 'ok' as const, label: '괜찮아요', icon: ThumbsUp },
+                    { value: 'burden' as const, label: '부담돼요', icon: AlertCircle },
+                    { value: 'prefer_other' as const, label: '다른 역할 선호', icon: Shuffle },
+                  ] as const
+                ).map(({ value, label, icon: Icon }) => {
+                  const isSelected = roleReaction === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => handleRoleReact(value)}
+                      disabled={isSubmitting}
+                      className="flex items-center gap-1.5 px-3 rounded-lg text-sm font-medium transition-colors"
+                      style={{
+                        minHeight: '44px',
+                        border: `1px solid ${isSelected ? 'var(--tf-bg-brand-solid)' : 'var(--tf-stroke-neutral)'}`,
+                        background: isSelected
+                          ? 'color-mix(in srgb, var(--tf-bg-brand-solid) 12%, transparent)'
+                          : 'var(--tf-bg-layer-default)',
+                        color: isSelected ? 'var(--tf-bg-brand-solid)' : 'var(--tf-fg-muted)',
+                      }}
+                    >
+                      <Icon size={14} />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* prefer_other: 자유 텍스트 입력 */}
+              {showNoteInput && (
+                <div className="mt-3">
+                  <textarea
+                    value={roleReactionNote}
+                    onChange={(e) => setRoleReactionNote(e.target.value.slice(0, 100))}
+                    placeholder="어떤 역할이 더 맞나요? (선택, 최대 100자)"
+                    rows={2}
+                    className="w-full rounded-lg px-3 py-2 text-sm resize-none"
+                    style={{
+                      border: '1px solid var(--tf-stroke-neutral)',
+                      background: 'var(--tf-bg-layer-default)',
+                      color: 'var(--tf-fg-default)',
+                    }}
+                  />
+                  <p className="text-xs mt-1 text-right" style={{ color: 'var(--tf-fg-muted)' }}>
+                    {roleReactionNote.length}/100
+                  </p>
+                </div>
+              )}
+
+              {reactionError && (
+                <p className="text-xs mt-2" style={{ color: 'var(--tf-fg-negative)' }}>
+                  {reactionError}
+                </p>
+              )}
+
+              {roleReaction && !isSubmitting && !reactionError && (
+                <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--tf-fg-positive)' }}>
+                  <Check size={12} />
+                  반응이 저장됐습니다
+                </p>
+              )}
+            </div>
           </div>
         )}
 

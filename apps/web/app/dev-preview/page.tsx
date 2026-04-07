@@ -153,6 +153,8 @@ export default function DevPreviewPage({
             suggestedRole: 'architect',
             submitted: true,
             submittedAt: '2026-04-06T14:30:00Z',
+            roleReaction: null,
+            roleReactionNote: null,
           }}
         />
       </div>

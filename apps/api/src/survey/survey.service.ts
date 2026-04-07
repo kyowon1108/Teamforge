@@ -192,7 +192,42 @@ export class SurveyService {
       suggestedRole,
       submitted: true,
       submittedAt: record.submittedAt?.toISOString() ?? null,
+      roleReaction: record.roleReaction ?? null,
+      roleReactionNote: record.roleReactionNote ?? null,
     };
+  }
+
+  /**
+   * POST /api/teams/:teamId/survey/role-reaction
+   * Screen 5 — 추천 역할에 대한 반응 저장 (ok / burden / prefer_other)
+   */
+  async saveRoleReaction(
+    teamId: string,
+    userId: string,
+    reaction: string,
+    note?: string,
+  ): Promise<{ roleReaction: string; roleReactionNote: string | null }> {
+    await this.requireMembership(teamId, userId);
+
+    const existing = await this.prisma.surveyResponse.findUnique({
+      where: { teamId_userId: { teamId, userId } },
+      select: { submitted: true },
+    });
+
+    if (!existing?.submitted) {
+      throw new ForbiddenException({
+        code: 'SURVEY_NOT_SUBMITTED',
+        message: '설문을 먼저 제출해야 역할 반응을 남길 수 있습니다',
+      });
+    }
+
+    const updated = await this.prisma.surveyResponse.update({
+      where: { teamId_userId: { teamId, userId } },
+      data: { roleReaction: reaction, roleReactionNote: note ?? null },
+      select: { roleReaction: true, roleReactionNote: true },
+    });
+
+    return { roleReaction: updated.roleReaction!, roleReactionNote: updated.roleReactionNote };
   }
 
   private calculateAxisScores(answers: SurveyAnswers): {

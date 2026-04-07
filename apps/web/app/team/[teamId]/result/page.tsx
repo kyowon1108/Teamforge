@@ -18,6 +18,8 @@ interface ResultResponse {
   suggestedRole: string | null;
   submitted: boolean;
   submittedAt: string | null;
+  roleReaction: 'ok' | 'burden' | 'prefer_other' | null;
+  roleReactionNote: string | null;
 }
 
 interface PageProps {

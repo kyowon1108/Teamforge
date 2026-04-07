@@ -52,8 +52,8 @@ Login (OAuth)
 | 3a Team Create | `/team/create` | authenticated, dashboard CTA clicked | team created, invite code shown, then → `/team/[teamId]` | ✅ | implemented |
 | 3b Team Join | `/team/join` | authenticated, dashboard CTA clicked | team joined (role: member\|observer), then → `/team/[teamId]` | ✅ | implemented |
 | 4 Skill Assessment | `/team/[teamId]/survey` | team membership exists, role is leader or member | survey submitted or saved | ✅ | implemented |
-| 5 Personal Result | `/team/[teamId]/result` | survey submitted (leader/member only) | role reaction saved or skipped | ✅ | implemented |
-| 6 Team Dashboard | `/dashboard` (global) + `/team/[teamId]/dashboard` (per-team) | authenticated | kickoff CTA clicked (all surveys submitted) | ✅ | implemented |
+| 5 Personal Result | `/team/[teamId]/result` | survey submitted (leader/member only) | role reaction saved or skipped | ⚠️ | implemented (반응 버튼 개선 필요 — P0-A) |
+| 6 Team Dashboard | `/dashboard` (global) + `/team/[teamId]/dashboard` (per-team) | authenticated | kickoff CTA clicked (all surveys submitted) | ⚠️ | implemented (팀 스킬 요약 패널 미구현 — P0-B) |
 | 7 Topic Decision | `/team/[teamId]/topic` | all surveys submitted (phase: survey_complete) | topic confirmed by leader | ✅ | implemented |
 | 8a System Framing | `/team/[teamId]/structure` | topic confirmed (phase: topic_confirmed) | structure blocks accepted by leader | ⬜ | ready-for-build |
 | 8b Technical Narrowing | `/team/[teamId]/stack` | structure accepted (phase: structure_accepted) | stack confirmed by leader | ⬜ | ready-for-build |
@@ -286,7 +286,11 @@ observer: can enter Screen 6, 7, 8a, 8b, 10, 11 in read-only mode
 - Top 2 strength labels (highest scoring axes)
 - Bottom 1 gap label (lowest scoring axis)
 - Role suggestion card: AI-generated suggested role based on profile
-- Reaction prompt: "이 결과가 나를 잘 표현하나요?" (yes/somewhat/no — saved to DB)
+- Role reaction prompt: "이 역할 추천이 어떤가요?" (ok/burden/prefer_other — saved to DB)
+  - "괜찮아요" (ok)
+  - "부담돼요" (burden)
+  - "다른 역할 선호해요" (prefer_other) → 선택 시 추가 텍스트 필드: "어떤 역할을 선호하나요?" (선택 사항, 최대 100자)
+  - DONE (260407_02): ok/burden/prefer_other 3종 구현 완료. Screen 10 Contract Gate 역할 확정 연결 고리 확보.
 - CTA: "팀 현황 보기" → `/team/[teamId]/dashboard`
 
 **Radar Chart — 6 Axes and Scoring Source**
@@ -315,7 +319,9 @@ Scoring rules:
 
 **API dependencies:**
 - `GET /api/teams/:teamId/survey/result` — returns computed axis scores + AI role suggestion
-- `POST /api/teams/:teamId/survey/reaction` — saves yes/somewhat/no reaction
+- `POST /api/teams/:teamId/survey/reaction` — saves role reaction
+  - Body: `{ reaction: 'ok' | 'burden' | 'prefer_other', preferOtherNote?: string }`
+  - DONE (260407_02): 'ok'/'burden'/'prefer_other' 값으로 변경 완료. DB migration 20260407031550 적용.
 
 **Role differences:**
 
@@ -347,6 +353,12 @@ Scoring rules:
   - "작성 중" (yellow) — draft saved, not submitted
   - "미시작" (grey) — no response yet
 - Aggregate progress bar: `submitted_count / total_member_count`
+- 팀 스킬 요약 패널 (⚠️ P0-B 미구현):
+  - submitted_count >= 1 시 표시
+  - 미니 레이더 차트 (6축, submitted 팀원 axisScores 평균)
+  - "N명의 평균 프로필" 부제
+  - 가장 높은 축 2개 "팀 강점" 배지, 가장 낮은 축 1개 "팀 성장 포인트" 배지
+  - 역할 분포 요약 (suggestedRole 집계): "백엔드 N명 / 프론트엔드 N명 / PM N명"
 - Kickoff readiness block:
   - Locked state (not all submitted): "팀원 모두가 설문을 완료하면 킥오프를 시작할 수 있어요"
   - Unlocked state: "킥오프 시작하기" CTA → `/team/[teamId]/topic`
@@ -365,6 +377,8 @@ Scoring rules:
 
 **API dependencies:**
 - `GET /api/teams/:teamId/members` — member list with survey status
+  - ⚠️ P0-B: 응답에 `axisScores?: number[6]` 필드 추가 필요 (submitted=true인 멤버만 포함)
+  - ⚠️ P0-B: 응답에 `suggestedRole?: string` 필드 추가 필요 (역할 분포 집계 용)
 - `GET /api/teams/:teamId/kickoff/phase` — current kickoff phase
 - Socket.io room: `team:{teamId}`, event: `survey:submitted`
 
@@ -1072,3 +1086,265 @@ page.tsx는 Server Component로 phase 검증 및 초기 데이터 fetch를 담�
 - [ ] Prisma 마이그레이션 파일 (KickoffTopic, KickoffReaction, KickoffStructure, KickoffStack, MemberExperience)
 - [ ] `tooling/prompts/` 에 Screen 7, 8a 프롬프트 파일 초안 (내용 미확정이어도 파일 위치 확보)
 - [ ] kickoff.service.ts `getPhase` 함수 확장 (topic_confirmed, structure_accepted, stack_confirmed 분기 추가)
+
+---
+
+## 구현 로드맵 및 우선순위 매트릭스
+
+> Added: 2026-04-07
+> 기준: Screen 7 구현 완료 후 총평 기반 재정렬. Screen 1~7 implemented.
+
+---
+
+### 현재 구현 상태 요약 (2026-04-07)
+
+| Screen | 경로 | 구현 상태 | 비고 |
+|--------|------|---------|------|
+| 1 Login | `/login` | ✅ implemented | |
+| 3a Team Create | `/team/create` | ✅ implemented | |
+| 3b Team Join | `/team/join` | ✅ implemented | |
+| 4 Skill Assessment | `/team/[teamId]/survey` | ✅ implemented | |
+| 5 Personal Result | `/team/[teamId]/result` | ✅ implemented | 역할 반응 버튼 개선 필요 (아래 P0 참조) |
+| 6 Team Dashboard | `/team/[teamId]/dashboard` | ✅ implemented | 팀 스킬 패널 미구현 (P0) |
+| 7 Topic Decision | `/team/[teamId]/topic` | ✅ implemented | Observer dev-preview mock 미등록 (P1) |
+| 8a System Framing | `/team/[teamId]/structure` | ⬜ ready-for-build | DB 스키마 확장 필요 |
+| 8b Technical Narrowing | `/team/[teamId]/stack` | ⬜ ready-for-build | 8a 완료 후 착수 |
+| 9 Handoff Layer | `/team/[teamId]/handoff` | ⬜ needs-adr (KF-015) | |
+| 10 Contract Gate | `/team/[teamId]/contract` | ⬜ needs-adr (KF-015) | |
+| 11 Meeting Hub | `/team/[teamId]/meeting` | ⬜ ready-for-build | Socket.io ADR 후 착수 |
+
+---
+
+### P0 — 즉시 (파일럿 전 필수)
+
+#### P0-A: Screen 5 역할 반응 버튼 개선 — DONE (260407_02)
+
+**현재 상태:** ok / burden / prefer_other 3종 구현 완료. DB migration 20260407031550 적용. Figma 노드 234:2, 235:2 재캡처 완료.
+
+~~**이전 상태:** yes / somewhat / no 3종 반응 저장. Screen 10 역할 확정과 연결 고리 없음.~~
+
+**필요 변경:**
+
+역할 반응 선택지를 다음으로 교체한다.
+
+| 현재 | 변경 후 |
+|------|--------|
+| yes | 괜찮아요 |
+| somewhat | 부담돼요 |
+| no | 다른 역할 선호해요 |
+
+"다른 역할 선호해요" 선택 시 추가 UI: 자유 입력 텍스트 필드 "어떤 역할을 선호하나요?" (선택 사항, 최대 100자).
+
+이 반응 데이터는 Screen 10 Contract Gate에서 역할 확정 시 참고 자료로 표시된다.
+
+**DB 영향:** `SurveyResponse` 테이블에 신규 컬럼 없음. 반응은 별도 저장소 필요.
+
+현재 `POST /api/teams/:teamId/survey/reaction`의 응답 값을 `ok | burden | prefer_other` + `preferOtherNote?: string`으로 변경한다. 기존 yes/somewhat/no 반응 데이터는 마이그레이션 스크립트로 ok/burden/prefer_other로 전환하거나, API 계층에서 backward-compatible 매핑을 유지한다.
+
+**신규 API 계약:**
+
+```
+POST /api/teams/:teamId/survey/reaction
+Body: { reaction: 'ok' | 'burden' | 'prefer_other', preferOtherNote?: string }
+Response: { saved: true }
+```
+
+**영향 파일:**
+- `apps/web/app/team/[teamId]/result/result-client.tsx` — 버튼 레이블 및 조건부 텍스트 필드
+- `apps/api/src/survey/survey.service.ts` — reaction 저장 로직 (값 변경)
+- `packages/contracts/src/jsonb/` — reaction 스키마 업데이트
+
+**역할별 분기:**
+
+| | leader | member | observer |
+|-|--------|--------|----------|
+| 반응 버튼 노출 | yes | yes | 없음 (redirect) |
+| preferOtherNote 입력 | yes | yes | 없음 |
+| 반응 없이 CTA 진행 | 허용 | 허용 | n/a |
+
+---
+
+#### P0-B: Screen 6 팀 스킬 요약 패널 추가
+
+**현재 상태:** 진행률 bar + 팀원 목록. 설문 완료 팀원의 axisScores 집계 없음.
+
+**필요 변경:**
+
+설문 완료 팀원(submitted=true)의 axisScores를 집계하여 팀 수준 레이더 차트를 표시한다.
+
+**UI 구성 (추가 영역):**
+
+```
+[팀 스킬 요약 패널] — submitted_count >= 1 시 표시
+  - 미니 레이더 차트 (6축, 개인 결과 페이지의 1/2 크기)
+  - "N명의 평균 프로필" 부제
+  - 가장 높은 축 2개: "팀 강점" 배지
+  - 가장 낮은 축 1개: "팀 성장 포인트" 배지
+  - 역할 분포 요약: "백엔드 N명 / 프론트엔드 N명 / PM N명" 형태
+    (AI 추천 역할 집계 — survey result API의 suggestedRole 필드 활용)
+```
+
+**표시 조건:**
+
+- submitted_count === 0: 패널 숨김 (설문 독려 메시지만 표시)
+- submitted_count >= 1: 미니 레이더 차트 표시 (전체 제출 아니어도 가능)
+- submitted_count === total_member_count: 킥오프 CTA 활성화 (기존 동작 유지)
+
+**API 의존성:**
+
+기존 `GET /api/teams/:teamId/members` 응답에 `axisScores` 필드 추가 필요.
+
+```
+// 현재 응답 (추정)
+{ members: [{ userId, name, role, surveyStatus }] }
+
+// 변경 후
+{ members: [{ userId, name, role, surveyStatus, axisScores?: number[6] }] }
+// axisScores는 submitted=true인 멤버만 포함. submitted=false이면 null.
+```
+
+집계는 클라이언트에서 수행 (KF-017 위반 없음 — 개인 계산은 서버, 팀 평균 집계는 프론트엔드에서 수행).
+
+**역할별 분기:**
+
+| | leader | member | observer |
+|-|--------|--------|----------|
+| 팀 스킬 패널 표시 | yes | yes | yes |
+| 역할 분포 배지 | yes | yes | yes |
+| "내 결과 보기" 링크 | yes | yes | 없음 |
+
+**영향 파일:**
+- `apps/api/src/teams/teams.service.ts` (또는 members 엔드포인트) — axisScores 포함
+- `apps/api/src/survey/survey.service.ts` — getMyResult 재사용 or 별도 팀 집계 메서드
+- `apps/web/app/team/[teamId]/dashboard/` — 미니 레이더 차트 컴포넌트, 팀 스킬 집계 로직
+
+**에러 상태:**
+- axisScores fetch 실패 → 패널 숨김, 진행률 bar만 표시 (degraded gracefully)
+
+---
+
+### P1 — 다음 스프린트 (1~2주)
+
+#### P1-A: Screen 8a System Framing 구현
+
+**진입 조건:** topic_confirmed phase (Screen 7 완료)
+
+**신규 DB 테이블:** KickoffStructure (docs에 설계 완료, 미마이그레이션)
+
+**AI 호출:** ADR-003 확정 후 같은 polling 패턴 적용
+
+**핵심 구현 단위:**
+1. Prisma 마이그레이션: KickoffStructure 테이블 추가
+2. `apps/api/src/structure/` NestJS 모듈 신규 (3개 엔드포인트)
+3. `packages/contracts/src/ai/structure-suggestions.schema.ts` Zod 스키마
+4. `tooling/prompts/structure-suggestion.md` 프롬프트 파일
+5. `apps/web/app/team/[teamId]/structure/` 페이지 구현
+
+**Observer UI:** Screen 7과 동일 패턴. 블록 카드 read-only 렌더링, 반응 버튼 비활성화.
+
+---
+
+#### P1-B: Screen 7 Observer dev-preview mock 등록
+
+**현재 상태:** Observer 상태 코드에 존재하나 `/dev-preview` mock이 없어 Figma 캡처 불가.
+
+**필요 작업:**
+- `apps/web/app/dev-preview/page.tsx`에 Screen 7 Observer 상태 mock 데이터 추가
+- topic_confirmed 후 read-only 상태 mock 데이터 추가
+
+**영향 파일:**
+- `apps/web/app/dev-preview/page.tsx`
+
+---
+
+#### P1-C: Screen 7 반응 토글 동작 명확화
+
+**현재 상태:** 스펙에 반응 토글(agree → concern 변경 가능 여부) 명시 없음.
+
+**설계 결정:** 반응은 upsert 방식으로 처리한다. 동일 userId + topicId에 재반응 시 기존 반응을 덮어쓴다. topic_confirmed 이후에는 409로 차단.
+
+**UI:** 반응 버튼이 이미 선택된 상태이면 선택된 버튼에 강조 스타일. 재클릭 시 반응 취소(upsert null) 또는 다른 버튼 클릭 시 교체. topic_confirmed 이후 버튼 전체 disabled.
+
+이 동작은 `POST /api/teams/:teamId/topic/react`의 upsert 구현으로 이미 지원됨 (KickoffReaction @@unique([topicId, userId])). 클라이언트 UI만 명확화 필요.
+
+---
+
+#### P1-D: Screen 8b Technical Narrowing 구현
+
+**진입 조건:** structure_accepted phase (Screen 8a 완료)
+
+**신규 DB 테이블:** KickoffStack, MemberExperience
+
+**AI 호출 없음:** acceptedBlocks 기반 옵션 목록 매핑 + 설문 선호도 집계
+
+---
+
+### P2 — Backlog
+
+#### P2-A: Screen 9 Handoff Layer
+
+**차단 조건:** KF-015 ADR 미확정. 외부 write-back(GitHub, Notion, Slack) 형식 미결정.
+
+**사전 필요:** ADR-005 또는 KF-015 전담 ADR 작성 → 승인 후 착수.
+
+---
+
+#### P2-B: Screen 10 Contract Gate
+
+**차단 조건:** KF-015 ADR 미확정. 계약서 저장 형식(PDF, DB 스냅샷) 미결정.
+
+**사전 필요:** KF-015 ADR → DB 마이그레이션 runbook 작성 → 착수.
+
+---
+
+#### P2-C: Screen 11 Meeting Hub
+
+**진입 조건:** contract_signed phase. ADR-004 (Socket.io) 확정 필요.
+
+**상태:** ready-for-build이나 Socket.io 인프라 결정 선행 필요.
+
+---
+
+#### P2-D: Screen 6 역할 추천 분포 고도화
+
+현재 P0-B에서 suggestedRole 단순 집계를 구현한다. 이후 역할 분포를 더 정교하게 표현하는 UI 개선은 P2로 유보. Screen 10 Contract Gate 역할 확정 흐름이 확정된 후 재검토.
+
+---
+
+#### P2-E: Figma 전체 스크린샷 업데이트
+
+Screen 5/6/7 개선 사항이 P0/P1 구현 완료 후 Figma 캡처 업데이트 필요.
+
+---
+
+### 권장 다음 구현 순서
+
+```
+P0-A (Screen 5 반응 버튼 개선)
+  → P0-B (Screen 6 팀 스킬 패널 추가)
+  → P1-B (Screen 7 dev-preview mock)
+  → P1-A (Screen 8a System Framing)
+  → P1-D (Screen 8b Technical Narrowing)
+  → P2-A/B (ADR 확정 후 Screen 9/10)
+  → P2-C (ADR-004 확정 후 Screen 11)
+```
+
+**P0-A와 P0-B를 먼저 하는 이유:**
+
+Screen 5의 역할 반응 데이터는 Screen 10 Contract Gate에서 역할 확정 시 사용한다. 지금 반응 스키마(yes/somewhat/no)가 굳어지면 나중에 DB 마이그레이션이 필요해진다. Screen 6의 팀 스킬 패널은 기존 API 응답 확장만으로 구현 가능하며, 파일럿 시연 시 "팀 분석 결과"를 직관적으로 보여주는 핵심 요소다.
+
+Screen 8a를 P0가 아닌 P1로 배치한 이유: ADR-003이 확정되어야 AI 호출 패턴이 고정된다. ADR 없이 착수하면 Screen 7과 다른 패턴으로 구현될 위험이 있다.
+
+---
+
+### Figma 신규 캡처 필요 항목
+
+| 항목 | 대상 화면/상태 | 비고 |
+|------|-------------|------|
+| Screen 5 — 역할 반응 버튼 3종 새 레이블 | 234:2 (desktop), 235:2 (mobile) | DONE — 260407_02 재캡처 완료 |
+| Screen 5 — "다른 역할 선호" 텍스트 필드 노출 상태 | 234:2, 235:2 포함 | DONE — 260407_02 재캡처 완료 |
+| Screen 6 — 팀 스킬 요약 패널 (미니 레이더 + 역할 분포) | 104:3 업데이트 | P0-B 완료 후 |
+| Screen 7 — Observer read-only 상태 | 212:2 신규 프레임 | P1-B 완료 후 |
+| Screen 7 — topic_confirmed 후 read-only 상태 | 212:2 신규 프레임 | P1-B 완료 후 |
+| Screen 8a System Framing — 전체 | 신규 Figma 페이지 | P1-A 완료 후 |
+| Screen 8b Technical Narrowing — 전체 | 신규 Figma 페이지 | P1-D 완료 후 |

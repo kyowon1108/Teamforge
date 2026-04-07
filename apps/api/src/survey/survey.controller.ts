@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -74,6 +75,21 @@ export class SurveyController {
   }
 
   /**
+   * POST /api/teams/:teamId/survey/role-reaction
+   * Screen 5 — 추천 역할에 대한 반응 저장 (ok / burden / prefer_other)
+   */
+  @Post('role-reaction')
+  @HttpCode(HttpStatus.OK)
+  async saveRoleReaction(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+    @Body() body: unknown,
+  ) {
+    const { reaction, note } = this.parseRoleReactionBody(body);
+    return this.surveyService.saveRoleReaction(teamId, user.sub, reaction, note);
+  }
+
+  /**
    * body를 SaveDraftDto 형태로 검증하는 헬퍼.
    * answers 필드가 object인지만 확인하고, 세부 Zod 검증은 Service 에서 수행.
    */
@@ -98,5 +114,21 @@ export class SurveyController {
       dto.metadata = raw.metadata as SaveDraftDto['metadata'];
     }
     return dto;
+  }
+
+  private parseRoleReactionBody(body: unknown): { reaction: string; note?: string } {
+    if (typeof body !== 'object' || body === null) {
+      throw new UnprocessableEntityException({ code: 'INVALID_REQUEST_BODY', message: '요청 형식이 올바르지 않습니다' });
+    }
+    const raw = body as Record<string, unknown>;
+    const reaction = raw.reaction;
+    if (reaction !== 'ok' && reaction !== 'burden' && reaction !== 'prefer_other') {
+      throw new BadRequestException({ code: 'INVALID_REACTION', message: "reaction은 'ok', 'burden', 'prefer_other' 중 하나여야 합니다" });
+    }
+    const note = raw.note;
+    if (note !== undefined && (typeof note !== 'string' || note.length > 100)) {
+      throw new BadRequestException({ code: 'INVALID_NOTE', message: 'note는 최대 100자 문자열입니다' });
+    }
+    return { reaction, note: typeof note === 'string' ? note : undefined };
   }
 }

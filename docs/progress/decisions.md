@@ -255,3 +255,13 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `apps/api/package.json`, `apps/api/src/topic/topic.service.ts`, `packages/contracts/src/ai/topic-suggestions.schema.ts`, `OPENAI_API_KEY` 환경변수
 
 **일지:** [260407_01](./260407_01-screen7-topic-decision.md)
+
+## KF-025 — Screen 5 역할 반응 값을 ok/burden/prefer_other 3종으로 확정
+
+**결론:** 기존 yes/somewhat/no 3종 반응 값을 `ok` / `burden` / `prefer_other` 로 교체한다. `prefer_other` 선택 시 선택적 자유 텍스트 필드(`preferOtherNote`, 최대 100자)를 함께 저장한다. `POST /api/teams/:teamId/survey/reaction` Body 스키마를 이에 맞게 변경하고, 기존 저장된 yes/somewhat/no 값은 API 계층에서 backward-compatible 매핑(yes→ok, somewhat→burden, no→prefer_other)으로 처리하거나 마이그레이션 스크립트를 작성한다.
+
+**이유:** Screen 10 Contract Gate에서 역할 확정 시 팀원별 역할 반응을 참고 자료로 표시한다. yes/somewhat/no는 역할 수용 의사를 명확히 전달하지 않는다. ok/burden/prefer_other는 역할 협상 컨텍스트에 맞는 의미론적 레이블이다. preferOtherNote는 Screen 10에서 팀장이 역할 재배정 시 참고할 수 있는 근거 데이터다.
+
+**영향 범위:** `apps/api/src/survey/survey.service.ts`, `apps/web/app/team/[teamId]/result/result-client.tsx`, `packages/contracts/src/jsonb/` (reaction 스키마)
+
+**일지:** [260407_02](./260407_02-screen5-role-reaction.md)

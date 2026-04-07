@@ -23,6 +23,7 @@ export default auth((req) => {
     'kickoff-topic-loading',
     'kickoff-topic-leader',
     'kickoff-topic-member',
+    'result',
   ];
   const isDevPreviewPublic =
     pathname === '/dev-preview' &&

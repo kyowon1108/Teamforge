@@ -104,9 +104,11 @@ model SurveyResponse {
   userId      String
   answers     Json      // SurveyAnswersSchema로 검증 후 저장
   metadata    Json?     // SurveyMetadataSchema (draftStep, autosavedAt 등)
-  submitted   Boolean   @default(false)
-  submittedAt DateTime?
-  createdAt   DateTime  @default(now())
+  submitted        Boolean   @default(false)
+  submittedAt      DateTime?
+  roleReaction     String?
+  roleReactionNote String?
+  createdAt        DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
