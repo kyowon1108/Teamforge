@@ -15,7 +15,7 @@ import Section8Collaboration from '@/components/survey/sections/Section8Collabor
 import Section9AIProfile from '@/components/survey/sections/Section9AIProfile';
 
 const SECTIONS = [
-  { id: 1, title: '기본 정보', est: '~30초' },
+  { id: 1, title: '나의 시작점', est: '~30초' },
   { id: 2, title: '기술 스택', est: '~90초' },
   { id: 3, title: '프로젝트 경험', est: '~60초' },
   { id: 4, title: '협업 스타일', est: '~45초' },
@@ -70,7 +70,8 @@ function isSectionValid(section: number, answers: Record<string, unknown>): bool
     case 7:
       return Object.keys((answers.blockConfidence as Record<string, unknown>) ?? {}).length >= 5;
     case 8:
-      return answers.collabChecklist !== undefined;
+      // 빈 체크리스트도 유효 — collabChecklist가 없거나 모두 false여도 통과
+      return true;
     case 9: {
       const aiProfile = answers.aiProfile as { preferences?: string[]; verificationLevel?: number } | undefined;
       return (aiProfile?.preferences?.length ?? 0) >= 1 && aiProfile?.verificationLevel != null;

@@ -1,5 +1,10 @@
 'use client';
 
+import {
+  MonitorSmartphone, Server, Database, Cloud, Bot, Palette,
+} from 'lucide-react';
+import { type LucideIcon } from 'lucide-react';
+
 interface Props {
   answers: Record<string, unknown>;
   updateAnswers: (a: Record<string, unknown>) => void;
@@ -15,6 +20,15 @@ const TECH_CATEGORIES: Record<string, string[]> = {
   '디자인': ['Figma', 'Photoshop', 'Blender', 'Unity'],
 };
 
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  '프론트엔드': MonitorSmartphone,
+  '백엔드': Server,
+  '인프라/DB': Database,
+  '클라우드': Cloud,
+  'AI/데이터': Bot,
+  '디자인': Palette,
+};
+
 const SKILL_LEVELS = [
   { value: 1, label: '튜토리얼 따라해 봄' },
   { value: 2, label: '간단한 프로젝트 완성' },
@@ -24,7 +38,12 @@ const SKILL_LEVELS = [
 ];
 
 const STRENGTH_AREAS = [
-  '백엔드', '프론트엔드', '데이터베이스', '인프라/DevOps', 'AI/ML', '디자인',
+  { label: '백엔드', Icon: Server },
+  { label: '프론트엔드', Icon: MonitorSmartphone },
+  { label: '데이터베이스', Icon: Database },
+  { label: '인프라/DevOps', Icon: Cloud },
+  { label: 'AI/ML', Icon: Bot },
+  { label: '디자인', Icon: Palette },
 ];
 
 export default function Section2TechStack({ answers, updateAnswers }: Props) {
@@ -64,10 +83,10 @@ export default function Section2TechStack({ answers, updateAnswers }: Props) {
           className="text-[18px] font-semibold mb-1"
           style={{ color: 'var(--tf-fg-default)' }}
         >
-          기술 스택
+          지금 바로 써먹을 수 있는 기술을 골라주세요
         </h2>
         <p className="text-[13px]" style={{ color: 'var(--tf-fg-muted)' }}>
-          경험한 기술과 숙련도를 알려주세요
+          익숙한 기술만 골라도 충분해요
         </p>
       </div>
 
@@ -79,43 +98,63 @@ export default function Section2TechStack({ answers, updateAnswers }: Props) {
         >
           Q3. 경험해 본 기술을 모두 선택하세요
         </p>
-        {Object.entries(TECH_CATEGORIES).map(([category, techs]) => (
-          <div key={category} className="space-y-2">
-            <p
-              className="text-[12px] font-medium uppercase tracking-wide"
-              style={{ color: 'var(--tf-fg-muted)' }}
-            >
-              {category}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {techs.map((tech) => (
-                <button
-                  key={tech}
-                  onClick={() => toggleTech(tech)}
-                  className="h-9 px-3 rounded-lg text-[13px] transition-all border"
-                  style={{
-                    background: techStackList.includes(tech)
-                      ? 'var(--tf-bg-brand-solid)'
-                      : 'transparent',
-                    color: techStackList.includes(tech)
-                      ? 'var(--tf-fg-inverse)'
-                      : 'var(--tf-fg-muted)',
-                    borderColor: techStackList.includes(tech)
-                      ? 'var(--tf-bg-brand-solid)'
-                      : 'var(--tf-stroke-neutral)',
-                  }}
+        {Object.entries(TECH_CATEGORIES).map(([category, techs]) => {
+          const CategoryIcon = CATEGORY_ICONS[category];
+          return (
+            <div key={category} className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                {CategoryIcon && (
+                  <CategoryIcon
+                    className="w-3.5 h-3.5"
+                    style={{ color: 'var(--tf-fg-muted)' }}
+                  />
+                )}
+                <p
+                  className="text-[12px] font-medium uppercase tracking-wide"
+                  style={{ color: 'var(--tf-fg-muted)' }}
                 >
-                  {tech}
-                </button>
-              ))}
+                  {category}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {techs.map((tech) => {
+                  const isSelected = techStackList.includes(tech);
+                  return (
+                    <button
+                      key={tech}
+                      onClick={() => toggleTech(tech)}
+                      className="h-9 px-3 rounded-lg text-[13px] transition-all duration-150 ease-out border"
+                      style={{
+                        background: isSelected
+                          ? 'var(--tf-bg-brand-solid)'
+                          : 'transparent',
+                        color: isSelected
+                          ? 'var(--tf-fg-inverse)'
+                          : 'var(--tf-fg-muted)',
+                        borderColor: isSelected
+                          ? 'var(--tf-bg-brand-solid)'
+                          : 'var(--tf-stroke-neutral)',
+                      }}
+                    >
+                      {tech}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Q4: Skill ratings */}
       {techStackList.length > 0 && (
-        <div className="space-y-4">
+        <div
+          className="rounded-xl p-4 space-y-4"
+          style={{
+            border: '1px solid var(--tf-stroke-neutral)',
+            background: 'var(--tf-bg-layer-default)',
+          }}
+        >
           <p
             className="text-[14px] font-medium"
             style={{ color: 'var(--tf-fg-default)' }}
@@ -178,25 +217,26 @@ export default function Section2TechStack({ answers, updateAnswers }: Props) {
           Q5. 자신 있는 영역 Top 2를 선택하세요
         </p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {STRENGTH_AREAS.map((area) => {
-            const isSelected = topStrengths.includes(area);
+          {STRENGTH_AREAS.map(({ label, Icon }) => {
+            const isSelected = topStrengths.includes(label);
             const isDisabled = topStrengths.length >= 2 && !isSelected;
             return (
               <button
-                key={area}
-                onClick={() => toggleStrength(area)}
-                className="h-10 rounded-lg text-[13px] font-medium transition-all border"
+                key={label}
+                onClick={() => !isDisabled && toggleStrength(label)}
+                className="flex items-center justify-center gap-2 h-10 rounded-lg text-[13px] font-medium transition-all duration-150 ease-out border"
                 style={{
                   background: isSelected ? 'var(--tf-bg-brand-solid)' : 'transparent',
                   color: isSelected ? 'var(--tf-fg-inverse)' : 'var(--tf-fg-muted)',
                   borderColor: isSelected
                     ? 'var(--tf-bg-brand-solid)'
                     : 'var(--tf-stroke-neutral)',
+                  pointerEvents: isDisabled ? 'none' : 'auto',
                   opacity: isDisabled ? 0.4 : 1,
-                  cursor: isDisabled ? 'not-allowed' : 'pointer',
                 }}
               >
-                {area}
+                <Icon className="w-3.5 h-3.5" />
+                {label}
               </button>
             );
           })}

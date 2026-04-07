@@ -276,6 +276,16 @@ This file keeps the currently effective working decisions in a compact format.
 
 **일지:** [260407_04](./260407_04-survey-screen56-redesign.md)
 
+## KF-028 — Survey 카드 UI 표준: 아이콘 카드 2열 그리드 + border 전환 패턴
+
+**결론:** 설문 섹션 선택 옵션의 기본 UI 표준을 아이콘 카드 2열 그리드로 확정한다. 선택 카드 기본 상태는 `border: 2px solid transparent` + `box-shadow: 0 0 0 1px var(--tf-stroke-neutral)`이며, 선택 상태에서는 `border: 2px solid var(--tf-stroke-brand)`로 전환한다. 전환 애니메이션은 `transition: all 150ms ease-out` + `scale-[1.02]`를 적용한다.
+
+**이유:** 2px border를 기본 상태에서도 transparent로 고정하면 선택 시 레이아웃 점프가 발생하지 않는다. 아이콘 카드 패턴은 텍스트 라디오 버튼 대비 스캔 속도가 빠르고 터치 타겟이 넓어 모바일 UX에 유리하다. scale 인터랙션은 150ms로 제한해 지나친 움직임을 방지한다.
+
+**영향 범위:** `apps/web/components/survey/sections/Section1BasicInfo.tsx` ~ `Section9AIProfile.tsx` 전체 섹션, 이후 추가될 설문 섹션
+
+**일지:** [260407_06](./260407_06-survey-card-ui-refresh.md)
+
 ## KF-025 — Screen 5 역할 반응 값을 ok/burden/prefer_other 3종으로 확정
 
 **결론:** 기존 yes/somewhat/no 3종 반응 값을 `ok` / `burden` / `prefer_other` 로 교체한다. `prefer_other` 선택 시 선택적 자유 텍스트 필드(`preferOtherNote`, 최대 100자)를 함께 저장한다. `POST /api/teams/:teamId/survey/reaction` Body 스키마를 이에 맞게 변경하고, 기존 저장된 yes/somewhat/no 값은 API 계층에서 backward-compatible 매핑(yes→ok, somewhat→burden, no→prefer_other)으로 처리하거나 마이그레이션 스크립트를 작성한다.

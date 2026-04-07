@@ -1,15 +1,17 @@
 'use client';
 
+import { Clock3, Clock6, Clock9, CalendarClock } from 'lucide-react';
+
 interface Props {
   answers: Record<string, unknown>;
   updateAnswers: (a: Record<string, unknown>) => void;
 }
 
 const hoursOptions = [
-  { value: 5, label: '5시간 이하' },
-  { value: 10, label: '5~10시간' },
-  { value: 20, label: '10~20시간' },
-  { value: 30, label: '20시간 이상' },
+  { value: 10, label: '주 10시간 미만', Icon: Clock3 },
+  { value: 20, label: '주 10~20시간', Icon: Clock6 },
+  { value: 30, label: '주 20~30시간', Icon: Clock9 },
+  { value: 40, label: '주 30시간 이상', Icon: CalendarClock },
 ];
 
 export default function Section5Availability({ answers, updateAnswers }: Props) {
@@ -23,10 +25,10 @@ export default function Section5Availability({ answers, updateAnswers }: Props) 
           className="text-[18px] font-semibold mb-1"
           style={{ color: 'var(--tf-fg-default)' }}
         >
-          가용 시간
+          현실적인 투입 가능 시간을 알려주세요
         </h2>
         <p className="text-[13px]" style={{ color: 'var(--tf-fg-muted)' }}>
-          프로젝트에 투입할 수 있는 시간을 알려주세요
+          무리 없는 기준으로 적어주시면 일정 조정에 도움이 돼요
         </p>
       </div>
 
@@ -38,29 +40,48 @@ export default function Section5Availability({ answers, updateAnswers }: Props) 
         >
           Q12. 주당 투입 가능한 시간은?
         </p>
-        <div className="grid grid-cols-2 gap-2">
-          {hoursOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => updateAnswers({ weeklyHours: opt.value })}
-              className="h-11 rounded-lg border text-[14px] transition-all"
-              style={{
-                borderColor:
-                  weeklyHours === opt.value
-                    ? 'var(--tf-stroke-brand)'
-                    : 'var(--tf-stroke-neutral)',
-                background:
-                  weeklyHours === opt.value ? 'var(--tf-bg-info)' : 'transparent',
-                color:
-                  weeklyHours === opt.value
-                    ? 'var(--tf-fg-default)'
-                    : 'var(--tf-fg-muted)',
-                fontWeight: weeklyHours === opt.value ? 500 : 400,
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="grid grid-cols-2 gap-3">
+          {hoursOptions.map(({ value, label, Icon }) => {
+            const isSelected = weeklyHours === value;
+            return (
+              <button
+                key={value}
+                onClick={() => updateAnswers({ weeklyHours: value })}
+                className="flex flex-col items-center gap-2 px-3 py-4 rounded-xl transition-all duration-150 ease-out"
+                style={{
+                  border: isSelected
+                    ? '2px solid var(--tf-stroke-brand)'
+                    : '2px solid transparent',
+                  background: isSelected
+                    ? 'var(--tf-bg-brand)'
+                    : 'var(--tf-bg-layer-default)',
+                  transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+                  boxShadow: isSelected
+                    ? '0 0 0 1px var(--tf-stroke-neutral-muted)'
+                    : '0 0 0 1px var(--tf-stroke-neutral)',
+                }}
+              >
+                <Icon
+                  className="w-6 h-6"
+                  style={{
+                    color: isSelected
+                      ? 'var(--tf-fg-brand)'
+                      : 'var(--tf-fg-muted)',
+                  }}
+                />
+                <span
+                  className="text-[13px] font-medium text-center"
+                  style={{
+                    color: isSelected
+                      ? 'var(--tf-fg-brand)'
+                      : 'var(--tf-fg-default)',
+                  }}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

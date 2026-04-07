@@ -3,18 +3,25 @@
 import {
   Code2, Server, Database, Shield, Terminal, TestTube2,
   FileText, Calendar, BarChart2, Bot, Wifi,
+  Star, Check, BookOpen, X,
 } from 'lucide-react';
+import { type LucideIcon } from 'lucide-react';
 
 interface Props {
   answers: Record<string, unknown>;
   updateAnswers: (a: Record<string, unknown>) => void;
 }
 
-const CONFIDENCE_LEVELS = [
-  { value: 'lead', label: '리드 가능', desc: '이 영역을 주도적으로 맡을 수 있어요' },
-  { value: 'contribute', label: '기여 가능', desc: '팀원과 함께 할 수 있어요' },
-  { value: 'learn', label: '배우면 가능', desc: '현재 학습 중이에요' },
-  { value: 'cant', label: '맡기 어려움', desc: '이번 프로젝트에서는 어려워요' },
+const CONFIDENCE_LEVELS: {
+  value: string;
+  label: string;
+  desc: string;
+  Icon: LucideIcon;
+}[] = [
+  { value: 'lead', label: '리드 가능', desc: '주도적으로 맡을 수 있어요', Icon: Star },
+  { value: 'contribute', label: '기여 가능', desc: '팀원과 함께 할 수 있어요', Icon: Check },
+  { value: 'learn', label: '배우면 가능', desc: '현재 학습 중이에요', Icon: BookOpen },
+  { value: 'cant', label: '맡기 어려움', desc: '이번엔 어려워요', Icon: X },
 ] as const;
 
 type ConfidenceValue = 'lead' | 'contribute' | 'learn' | 'cant';
@@ -54,23 +61,24 @@ export default function Section7Capability({ answers, updateAnswers }: Props) {
     <div className="space-y-8">
       <div>
         <h2 className="text-[18px] font-semibold mb-1" style={{ color: 'var(--tf-fg-default)' }}>
-          시스템 블록 역할
+          어떤 시스템 블록을 맡을 수 있는지 표시해 주세요
         </h2>
         <p className="text-[13px]" style={{ color: 'var(--tf-fg-muted)' }}>
-          각 영역에서 이번 프로젝트에 얼마나 기여할 수 있는지 알려주세요
+          모든 칸을 채울 필요는 없어요. 자신 있는 영역부터 선택해 주세요
         </p>
       </div>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-2">
         {CONFIDENCE_LEVELS.map((level) => {
-          const colors = CONFIDENCE_COLORS[level.value];
+          const colors = CONFIDENCE_COLORS[level.value as ConfidenceValue];
           return (
             <span
               key={level.value}
               className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border"
               style={{ borderColor: colors.border, background: colors.bg, color: colors.text }}
             >
+              <level.Icon className="w-3 h-3" />
               {level.label}
             </span>
           );
@@ -85,7 +93,10 @@ export default function Section7Capability({ answers, updateAnswers }: Props) {
             <div
               key={key}
               className="rounded-xl border p-4"
-              style={{ borderColor: 'var(--tf-stroke-neutral)', background: 'var(--tf-bg-layer-default)' }}
+              style={{
+                borderColor: 'var(--tf-stroke-neutral)',
+                background: 'var(--tf-bg-layer-default)',
+              }}
             >
               <div className="flex items-center gap-2 mb-3">
                 <Icon className="w-4 h-4 shrink-0" style={{ color: 'var(--tf-fg-brand)' }} />
@@ -93,21 +104,25 @@ export default function Section7Capability({ answers, updateAnswers }: Props) {
                   {label}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2">
                 {CONFIDENCE_LEVELS.map((level) => {
                   const isSelected = current === level.value;
-                  const colors = CONFIDENCE_COLORS[level.value];
+                  const colors = CONFIDENCE_COLORS[level.value as ConfidenceValue];
                   return (
                     <button
                       key={level.value}
-                      onClick={() => setConfidence(key, level.value)}
-                      className="flex flex-col items-center px-2 py-2 rounded-lg border text-center transition-all"
+                      onClick={() => setConfidence(key, level.value as ConfidenceValue)}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-all duration-150 ease-out"
                       style={{
-                        borderColor: isSelected ? colors.border : 'var(--tf-stroke-neutral)',
-                        background: isSelected ? colors.bg : 'transparent',
+                        border: isSelected
+                          ? `2px solid ${colors.border}`
+                          : '2px solid transparent',
+                        background: isSelected ? colors.bg : 'var(--tf-bg-layer-alt)',
                         color: isSelected ? colors.text : 'var(--tf-fg-muted)',
+                        transform: isSelected ? 'scale(1.02)' : 'scale(1)',
                       }}
                     >
+                      <level.Icon className="w-3.5 h-3.5 shrink-0" />
                       <span className="text-[12px] font-medium leading-tight">{level.label}</span>
                     </button>
                   );

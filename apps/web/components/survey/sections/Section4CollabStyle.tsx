@@ -1,5 +1,10 @@
 'use client';
 
+import {
+  Sparkles, Layout, Hammer, Users, FileText,
+  Server, Monitor, Boxes, Cloud, Bot, Calendar, Palette, TestTube2,
+} from 'lucide-react';
+
 interface Props {
   answers: Record<string, unknown>;
   updateAnswers: (a: Record<string, unknown>) => void;
@@ -8,28 +13,33 @@ interface Props {
 const archetypes = [
   {
     value: 'initiator',
-    label: '시작하는 사람 (Initiator)',
+    label: '시작하는 사람',
     desc: '아이디어를 내고 먼저 시작하는 편',
+    Icon: Sparkles,
   },
   {
     value: 'architect',
-    label: '설계하는 사람 (Architect)',
+    label: '설계하는 사람',
     desc: '구조와 방향을 잡는 걸 좋아하는 편',
+    Icon: Layout,
   },
   {
     value: 'executor',
-    label: '실행하는 사람 (Executor)',
+    label: '실행하는 사람',
     desc: '정해진 일을 빠르게 해내는 편',
+    Icon: Hammer,
   },
   {
     value: 'coordinator',
-    label: '조율하는 사람 (Coordinator)',
+    label: '조율하는 사람',
     desc: '의견을 모으고 일정을 관리하는 편',
+    Icon: Users,
   },
   {
     value: 'documenter',
-    label: '기록하는 사람 (Documenter)',
+    label: '기록하는 사람',
     desc: '문서화와 정리를 잘 하는 편',
+    Icon: FileText,
   },
 ];
 
@@ -40,8 +50,14 @@ const sliders = [
 ];
 
 const desiredRoleOptions = [
-  '백엔드 개발', '프론트엔드 개발', '풀스택 개발',
-  'DevOps/인프라', 'AI/데이터', 'PM/기획', '디자인', 'QA/테스트',
+  { label: '백엔드 개발', Icon: Server },
+  { label: '프론트엔드 개발', Icon: Monitor },
+  { label: '풀스택 개발', Icon: Boxes },
+  { label: 'DevOps/인프라', Icon: Cloud },
+  { label: 'AI/데이터', Icon: Bot },
+  { label: 'PM/기획', Icon: Calendar },
+  { label: '디자인', Icon: Palette },
+  { label: 'QA/테스트', Icon: TestTube2 },
 ];
 
 export default function Section4CollabStyle({ answers, updateAnswers }: Props) {
@@ -74,10 +90,10 @@ export default function Section4CollabStyle({ answers, updateAnswers }: Props) {
           className="text-[18px] font-semibold mb-1"
           style={{ color: 'var(--tf-fg-default)' }}
         >
-          협업 스타일
+          팀에서 일할 때의 스타일을 알려주세요
         </h2>
         <p className="text-[13px]" style={{ color: 'var(--tf-fg-muted)' }}>
-          팀에서의 작업 성향을 알려주세요
+          정답은 없어요. 편한 방식 그대로 골라주세요
         </p>
       </div>
 
@@ -90,39 +106,54 @@ export default function Section4CollabStyle({ answers, updateAnswers }: Props) {
           Q9. 팀에서 나는 주로...
         </p>
         <div className="space-y-2">
-          {archetypes.map((a) => (
-            <button
-              key={a.value}
-              onClick={() => updateAnswers({ workArchetype: a.value })}
-              className="w-full px-4 py-3 rounded-lg border text-left transition-all"
-              style={{
-                borderColor:
-                  workArchetype === a.value
-                    ? 'var(--tf-stroke-brand)'
-                    : 'var(--tf-stroke-neutral)',
-                background:
-                  workArchetype === a.value ? 'var(--tf-bg-info)' : 'transparent',
-              }}
-            >
-              <span
-                className="text-[14px] font-medium"
-                style={{ color: 'var(--tf-fg-default)' }}
+          {archetypes.map(({ value, label, desc, Icon }) => {
+            const isSelected = workArchetype === value;
+            return (
+              <button
+                key={value}
+                onClick={() => updateAnswers({ workArchetype: value })}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-150 ease-out"
+                style={{
+                  border: isSelected
+                    ? '2px solid var(--tf-stroke-brand)'
+                    : '2px solid transparent',
+                  background: isSelected ? 'var(--tf-bg-brand)' : 'var(--tf-bg-layer-default)',
+                  boxShadow: isSelected
+                    ? '0 0 0 1px var(--tf-stroke-neutral-muted)'
+                    : '0 0 0 1px var(--tf-stroke-neutral)',
+                  transform: isSelected ? 'scale(1.01)' : 'scale(1)',
+                }}
               >
-                {a.label}
-              </span>
-              <p
-                className="text-[12px] mt-0.5"
-                style={{ color: 'var(--tf-fg-muted)' }}
-              >
-                {a.desc}
-              </p>
-            </button>
-          ))}
+                <Icon
+                  className="w-5 h-5 shrink-0"
+                  style={{
+                    color: isSelected ? 'var(--tf-fg-brand)' : 'var(--tf-fg-muted)',
+                  }}
+                />
+                <div>
+                  <span
+                    className="text-[14px] font-medium"
+                    style={{
+                      color: isSelected ? 'var(--tf-fg-brand)' : 'var(--tf-fg-default)',
+                    }}
+                  >
+                    {label}
+                  </span>
+                  <p
+                    className="text-[12px] mt-0.5"
+                    style={{ color: 'var(--tf-fg-muted)' }}
+                  >
+                    {desc}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Q10 */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <p
           className="text-[14px] font-medium"
           style={{ color: 'var(--tf-fg-default)' }}
@@ -130,7 +161,14 @@ export default function Section4CollabStyle({ answers, updateAnswers }: Props) {
           Q10. 선호 작업 방식
         </p>
         {sliders.map((s, i) => (
-          <div key={s.key} className="space-y-2">
+          <div
+            key={s.key}
+            className="rounded-xl p-4 space-y-3"
+            style={{
+              border: '1px solid var(--tf-stroke-neutral)',
+              background: 'var(--tf-bg-layer-default)',
+            }}
+          >
             <div
               className="flex justify-between text-[12px]"
               style={{ color: 'var(--tf-fg-muted)' }}
@@ -164,25 +202,26 @@ export default function Section4CollabStyle({ answers, updateAnswers }: Props) {
           Q11. 맡고 싶은 역할 (최대 2개)
         </p>
         <div className="flex flex-wrap gap-2">
-          {desiredRoleOptions.map((role) => {
-            const isSelected = desiredRoles.includes(role);
+          {desiredRoleOptions.map(({ label, Icon }) => {
+            const isSelected = desiredRoles.includes(label);
             const isDisabled = desiredRoles.length >= 2 && !isSelected;
             return (
               <button
-                key={role}
-                onClick={() => toggleDesiredRole(role)}
-                className="h-9 px-3 rounded-lg text-[13px] transition-all border"
+                key={label}
+                onClick={() => !isDisabled && toggleDesiredRole(label)}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] transition-all duration-150 ease-out border"
                 style={{
                   background: isSelected ? 'var(--tf-bg-brand-solid)' : 'transparent',
                   color: isSelected ? 'var(--tf-fg-inverse)' : 'var(--tf-fg-muted)',
                   borderColor: isSelected
                     ? 'var(--tf-bg-brand-solid)'
                     : 'var(--tf-stroke-neutral)',
+                  pointerEvents: isDisabled ? 'none' : 'auto',
                   opacity: isDisabled ? 0.4 : 1,
-                  cursor: isDisabled ? 'not-allowed' : 'pointer',
                 }}
               >
-                {role}
+                <Icon className="w-3.5 h-3.5" />
+                {label}
               </button>
             );
           })}
