@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import OpenAI from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
-import { TopicSuggestionsSchema, type TopicSuggestion } from '@teamforge/contracts';
+import { TopicSuggestionsSchema, type TopicSuggestion, SurveyAnswersSchema, type SurveyAnswers } from '@teamforge/contracts';
 
 @Injectable()
 export class KickoffService implements OnApplicationBootstrap {
@@ -178,7 +178,7 @@ export class KickoffService implements OnApplicationBootstrap {
       });
     }
 
-    // 설문 응답 조회 (observer 제외 대상자들의 제출 여부)
+    // 설문 응답 조회 (observer 제외 대상자들의 제출 여부 + answers)
     const surveyableUserIds = memberships
       .filter((m) => m.role !== 'observer')
       .map((m) => m.userId);
@@ -188,12 +188,11 @@ export class KickoffService implements OnApplicationBootstrap {
         teamId,
         userId: { in: surveyableUserIds },
       },
-      select: { userId: true, submitted: true },
+      select: { userId: true, submitted: true, answers: true },
     });
 
-    const submittedSet = new Set(
-      surveyResponses.filter((r) => r.submitted).map((r) => r.userId),
-    );
+    const submittedResponses = surveyResponses.filter((r) => r.submitted);
+    const submittedSet = new Set(submittedResponses.map((r) => r.userId));
 
     const total = surveyableUserIds.length;
     const submitted = submittedSet.size;
@@ -210,21 +209,82 @@ export class KickoffService implements OnApplicationBootstrap {
       userId: m.userId,
       name: m.user.name,
       role: m.role,
-      // observer는 submitted 값을 null로 표시
       submitted: m.role === 'observer' ? null : submittedSet.has(m.userId),
       image: m.user.image,
     }));
 
+    // 팀 인사이트 — survey_complete 시에만 계산
+    let teamInsight: ReturnType<typeof this._buildTeamInsight> | null = null;
+    if (canProceed && submittedResponses.length > 0) {
+      teamInsight = this._buildTeamInsight(submittedResponses);
+    }
+
     return {
       phase,
-      surveyStats: {
-        total,
-        submitted,
-        canProceed,
-      },
+      surveyStats: { total, submitted, canProceed },
       members,
       myRole,
+      teamInsight,
     };
+  }
+
+  private _buildTeamInsight(responses: { answers: unknown }[]) {
+    const AXES = ['기획력', '기술력', '소통력', '추진력', '창의력', '성장력'] as const;
+    type AxisKey = typeof AXES[number];
+
+    const totals: Record<AxisKey, number> = {
+      기획력: 0, 기술력: 0, 소통력: 0, 추진력: 0, 창의력: 0, 성장력: 0,
+    };
+    const roleCounts: Record<string, number> = {};
+    let validCount = 0;
+
+    for (const r of responses) {
+      const parsed = SurveyAnswersSchema.safeParse(r.answers);
+      if (!parsed.success) continue;
+      const scores = this._calcAxisScores(parsed.data);
+      for (const axis of AXES) totals[axis] += scores[axis];
+      const role = parsed.data.workArchetype;
+      if (role) roleCounts[role] = (roleCounts[role] ?? 0) + 1;
+      validCount++;
+    }
+
+    if (validCount === 0) return null;
+
+    const avgAxisScores = Object.fromEntries(
+      AXES.map((a) => [a, Math.round(totals[a] / validCount)]),
+    ) as Record<AxisKey, number>;
+
+    const sorted = (Object.entries(avgAxisScores) as [AxisKey, number][]).sort((a, b) => b[1] - a[1]);
+    const topAxes = sorted.slice(0, 2).map(([name]) => name);
+    const bottomAxis = sorted[sorted.length - 1]?.[0] ?? sorted[0]![0];
+
+    return { avgAxisScores, topAxes, bottomAxis, roleDistribution: roleCounts };
+  }
+
+  private _calcAxisScores(answers: SurveyAnswers) {
+    const backgroundBonusMap: Record<string, number> = { cs_major: 40, working_dev: 35, bootcamp: 25, non_major: 15, pm_designer: 20 };
+    const backgroundBonus = answers.backgroundType ? (backgroundBonusMap[answers.backgroundType] ?? 0) : 0;
+    const 기획력 = Math.min(100, Math.round(((answers.experienceTier ?? 1) / 5) * 60 + backgroundBonus));
+
+    const techStackCount = answers.techStackList?.length ?? 0;
+    const techStackScore = (Math.min(techStackCount, 8) / 8) * 50;
+    const skillRatings = answers.skillRatings && Object.keys(answers.skillRatings).length > 0;
+    const avgSkill = skillRatings ? Object.values(answers.skillRatings!).reduce((a, b) => a + b, 0) / Object.values(answers.skillRatings!).length : 0;
+    const 기술력 = Math.min(100, Math.round(skillRatings ? techStackScore + (avgSkill / 5) * 50 : techStackScore * 2));
+
+    const 소통력 = Math.min(100, Math.round(((answers.gitCollabLevel ?? 0) / 4) * 50 + (Math.min(answers.projectCount ?? 0, 5) / 5) * 30 + ((answers.actualRoles ?? []).length >= 2 ? 20 : 10)));
+
+    const archetypeScoreMap: Record<string, number> = { initiator: 85, architect: 75, executor: 70, coordinator: 65, documenter: 55 };
+    const archetypeBase = answers.workArchetype ? (archetypeScoreMap[answers.workArchetype] ?? 60) : 60;
+    const workStyleBonus = ((answers.workStyleVector ?? [0, 0, 0]).reduce((a: number, b: number) => a + b, 0) / 100 / 3) * 15;
+    const 추진력 = Math.min(100, Math.round(archetypeBase + workStyleBonus));
+
+    const freeText = answers.freeText ?? '';
+    const 창의력 = Math.min(100, freeText.length > 0 ? Math.round((Math.min(freeText.length, 300) / 300) * 60 + 40) : 30);
+
+    const 성장력 = Math.min(100, Math.round(((answers.githubUrl ?? '').length > 0 ? 40 : 0) + (Math.min((answers.selfIntro ?? '').length, 300) / 300) * 60));
+
+    return { 기획력, 기술력, 소통력, 추진력, 창의력, 성장력 };
   }
 
   /**

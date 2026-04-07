@@ -353,9 +353,9 @@ Scoring rules:
   - "작성 중" (yellow) — draft saved, not submitted
   - "미시작" (grey) — no response yet
 - Aggregate progress bar: `submitted_count / total_member_count`
-- 팀 스킬 요약 패널 (⚠️ P0-B 미구현):
+- 팀 스킬 요약 패널 (P0-B 완료 — 260407_03):
   - submitted_count >= 1 시 표시
-  - 미니 레이더 차트 (6축, submitted 팀원 axisScores 평균)
+  - 미니 레이더 차트 (6축, 120x120 SVG, submitted 팀원 axisScores 평균)
   - "N명의 평균 프로필" 부제
   - 가장 높은 축 2개 "팀 강점" 배지, 가장 낮은 축 1개 "팀 성장 포인트" 배지
   - 역할 분포 요약 (suggestedRole 집계): "백엔드 N명 / 프론트엔드 N명 / PM N명"
@@ -377,8 +377,7 @@ Scoring rules:
 
 **API dependencies:**
 - `GET /api/teams/:teamId/members` — member list with survey status
-  - ⚠️ P0-B: 응답에 `axisScores?: number[6]` 필드 추가 필요 (submitted=true인 멤버만 포함)
-  - ⚠️ P0-B: 응답에 `suggestedRole?: string` 필드 추가 필요 (역할 분포 집계 용)
+- `GET /api/teams/:teamId/kickoff/status` — 응답에 `teamInsight` 필드 포함 (P0-B 완료): avgAxisScores, topAxes, bottomAxis, roleDistribution
 - `GET /api/teams/:teamId/kickoff/phase` — current kickoff phase
 - Socket.io room: `team:{teamId}`, event: `survey:submitted`
 
@@ -1164,9 +1163,9 @@ Response: { saved: true }
 
 ---
 
-#### P0-B: Screen 6 팀 스킬 요약 패널 추가
+#### P0-B: Screen 6 팀 스킬 요약 패널 추가 — DONE (260407_03)
 
-**현재 상태:** 진행률 bar + 팀원 목록. 설문 완료 팀원의 axisScores 집계 없음.
+**현재 상태:** TeamInsightPanel 구현 완료. `getKickoffStatus` 서버사이드 집계 (avgAxisScores, topAxes, bottomAxis, roleDistribution). 미니 레이더 SVG(120x120) + 배지 UI. Figma 재캡처 완료(248:2 desktop, 249:2 mobile).
 
 **필요 변경:**
 
@@ -1343,7 +1342,7 @@ Screen 8a를 P0가 아닌 P1로 배치한 이유: ADR-003이 확정되어야 AI 
 |------|-------------|------|
 | Screen 5 — 역할 반응 버튼 3종 새 레이블 | 234:2 (desktop), 235:2 (mobile) | DONE — 260407_02 재캡처 완료 |
 | Screen 5 — "다른 역할 선호" 텍스트 필드 노출 상태 | 234:2, 235:2 포함 | DONE — 260407_02 재캡처 완료 |
-| Screen 6 — 팀 스킬 요약 패널 (미니 레이더 + 역할 분포) | 104:3 업데이트 | P0-B 완료 후 |
+| Screen 6 — 팀 스킬 요약 패널 (미니 레이더 + 역할 분포) | 248:2 (desktop), 249:2 (mobile) | DONE — 260407_03 재캡처 완료 |
 | Screen 7 — Observer read-only 상태 | 212:2 신규 프레임 | P1-B 완료 후 |
 | Screen 7 — topic_confirmed 후 read-only 상태 | 212:2 신규 프레임 | P1-B 완료 후 |
 | Screen 8a System Framing — 전체 | 신규 Figma 페이지 | P1-A 완료 후 |

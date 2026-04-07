@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Check, Clock, Minus, Users, ChevronRight } from 'lucide-react';
-import type { KickoffStatusResponse, KickoffMember } from './page';
+import { Check, Clock, Minus, Users, ChevronRight, TrendingUp, Trophy } from 'lucide-react';
+import type { KickoffStatusResponse, KickoffMember, TeamInsight } from './page';
 
 interface Props {
   teamId: string;
@@ -113,9 +113,146 @@ function MemberRow({ member }: { member: KickoffMember }) {
   );
 }
 
+const AXES = ['기획력', '기술력', '소통력', '추진력', '창의력', '성장력'] as const;
+const RADAR_CENTER = { x: 120, y: 120 };
+const RADAR_RADIUS = 85;
+
+function radarAngle(i: number) {
+  return (Math.PI * 2 * i) / AXES.length - Math.PI / 2;
+}
+
+function radarPoint(value: number, axisIndex: number) {
+  const angle = radarAngle(axisIndex);
+  const r = (value / 100) * RADAR_RADIUS;
+  return { x: RADAR_CENTER.x + r * Math.cos(angle), y: RADAR_CENTER.y + r * Math.sin(angle) };
+}
+
+function radarGridPoint(level: number, axisIndex: number) {
+  const angle = radarAngle(axisIndex);
+  const r = (level / 100) * RADAR_RADIUS;
+  return { x: RADAR_CENTER.x + r * Math.cos(angle), y: RADAR_CENTER.y + r * Math.sin(angle) };
+}
+
+const ROLE_LABEL_MAP: Record<string, string> = {
+  initiator: '추진자', architect: '설계자', executor: '실행자',
+  coordinator: '조율자', documenter: '기록자',
+};
+
+function TeamInsightPanel({ insight }: { insight: TeamInsight }) {
+  const polygonPoints = AXES.map((axis, i) => {
+    const pt = radarPoint(insight.avgAxisScores[axis], i);
+    return `${pt.x},${pt.y}`;
+  }).join(' ');
+
+  const gridLevels = [20, 40, 60, 80, 100];
+
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={{ background: 'var(--tf-bg-layer-default)', border: '1px solid var(--tf-stroke-neutral)' }}
+    >
+      <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--tf-fg-default)' }}>
+        팀 스킬 분석
+      </h2>
+
+      <div className="flex gap-4 items-start">
+        {/* 미니 레이더 차트 */}
+        <svg viewBox="0 0 240 240" className="w-32 h-32 shrink-0" aria-label="팀 역량 레이더 차트" role="img">
+          {gridLevels.map((level) => (
+            <polygon
+              key={level}
+              points={AXES.map((_, i) => { const p = radarGridPoint(level, i); return `${p.x},${p.y}`; }).join(' ')}
+              fill="none"
+              stroke="var(--tf-stroke-neutral)"
+              strokeWidth="1"
+            />
+          ))}
+          {AXES.map((_, i) => {
+            const p = radarGridPoint(100, i);
+            return <line key={i} x1={RADAR_CENTER.x} y1={RADAR_CENTER.y} x2={p.x} y2={p.y} stroke="var(--tf-stroke-neutral)" strokeWidth="1" />;
+          })}
+          <polygon
+            points={polygonPoints}
+            fill="var(--tf-bg-brand-solid)"
+            fillOpacity="0.2"
+            stroke="var(--tf-bg-brand-solid)"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+          {AXES.map((axis, i) => {
+            const lAngle = radarAngle(i);
+            const lr = RADAR_RADIUS + 18;
+            const lx = RADAR_CENTER.x + lr * Math.cos(lAngle);
+            const ly = RADAR_CENTER.y + lr * Math.sin(lAngle);
+            return (
+              <text key={axis} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="10" fill="var(--tf-fg-muted)">
+                {axis}
+              </text>
+            );
+          })}
+        </svg>
+
+        {/* 강점 / 성장 포인트 / 역할 분포 */}
+        <div className="flex-1 min-w-0 space-y-3">
+          {/* 팀 강점 */}
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <Trophy className="w-3.5 h-3.5" style={{ color: 'var(--tf-fg-positive)' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--tf-fg-muted)' }}>팀 강점</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {insight.topAxes.map((axis) => (
+                <span
+                  key={axis}
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{ background: 'color-mix(in srgb, var(--tf-fg-positive) 12%, transparent)', color: 'var(--tf-fg-positive)' }}
+                >
+                  {axis}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* 성장 포인트 */}
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <TrendingUp className="w-3.5 h-3.5" style={{ color: 'var(--tf-fg-warning)' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--tf-fg-muted)' }}>성장 포인트</span>
+            </div>
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ background: 'color-mix(in srgb, var(--tf-fg-warning) 12%, transparent)', color: 'var(--tf-fg-warning)' }}
+            >
+              {insight.bottomAxis}
+            </span>
+          </div>
+
+          {/* 역할 분포 */}
+          {Object.keys(insight.roleDistribution).length > 0 && (
+            <div>
+              <span className="text-xs font-medium" style={{ color: 'var(--tf-fg-muted)' }}>역할 분포</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {Object.entries(insight.roleDistribution).map(([role, count]) => (
+                  <span
+                    key={role}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs"
+                    style={{ background: 'color-mix(in srgb, var(--tf-bg-brand-solid) 10%, transparent)', color: 'var(--tf-bg-brand-solid)' }}
+                  >
+                    {ROLE_LABEL_MAP[role] ?? role} {count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function KickoffDashboardClient({ teamId, data }: Props) {
   const router = useRouter();
-  const { phase, surveyStats, members, myRole } = data;
+  const { phase, surveyStats, members, myRole, teamInsight } = data;
   const { total, submitted, canProceed } = surveyStats;
 
   const activeMembers = members.filter((m) => m.role !== 'observer');
@@ -289,7 +426,10 @@ export default function KickoffDashboardClient({ teamId, data }: Props) {
           )}
         </div>
 
-        {/* 4. 내 결과 보기 */}
+        {/* 4. 팀 스킬 인사이트 (survey_complete 시에만) */}
+        {teamInsight && <TeamInsightPanel insight={teamInsight} />}
+
+        {/* 5. 내 결과 보기 */}
         {myRole !== 'observer' && (
           <button
             onClick={() => router.push(`/team/${teamId}/result`)}
@@ -305,7 +445,7 @@ export default function KickoffDashboardClient({ teamId, data }: Props) {
           </button>
         )}
 
-        {/* 5. 다음 단계 */}
+        {/* 6. 다음 단계 */}
         <div
           className="rounded-xl p-4"
           style={{

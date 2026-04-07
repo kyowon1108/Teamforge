@@ -12,6 +12,20 @@ export interface KickoffMember {
   image: string | null;
 }
 
+export interface TeamInsight {
+  avgAxisScores: {
+    기획력: number;
+    기술력: number;
+    소통력: number;
+    추진력: number;
+    창의력: number;
+    성장력: number;
+  };
+  topAxes: string[];
+  bottomAxis: string;
+  roleDistribution: Record<string, number>;
+}
+
 export interface KickoffStatusResponse {
   phase: 'survey_in_progress' | 'survey_complete';
   surveyStats: {
@@ -21,6 +35,7 @@ export interface KickoffStatusResponse {
   };
   members: KickoffMember[];
   myRole: 'leader' | 'member' | 'observer';
+  teamInsight: TeamInsight | null;
 }
 
 interface PageProps {

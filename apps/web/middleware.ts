@@ -24,6 +24,7 @@ export default auth((req) => {
     'kickoff-topic-leader',
     'kickoff-topic-member',
     'result',
+    'kickoff-dashboard-complete',
   ];
   const isDevPreviewPublic =
     pathname === '/dev-preview' &&

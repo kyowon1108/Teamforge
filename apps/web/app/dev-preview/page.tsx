@@ -178,6 +178,7 @@ export default function DevPreviewPage({
               { userId: 'u5', name: '정예원', role: 'observer', submitted: null, image: null },
             ],
             myRole: 'leader',
+            teamInsight: null,
           }}
         />
       </div>
@@ -201,6 +202,12 @@ export default function DevPreviewPage({
               { userId: 'u5', name: '정예원', role: 'observer', submitted: null, image: null },
             ],
             myRole: 'leader',
+            teamInsight: {
+              avgAxisScores: { 기획력: 74, 기술력: 85, 소통력: 62, 추진력: 78, 창의력: 58, 성장력: 88 },
+              topAxes: ['기술력', '성장력'],
+              bottomAxis: '창의력',
+              roleDistribution: { architect: 2, executor: 1, coordinator: 1 },
+            },
           }}
         />
       </div>

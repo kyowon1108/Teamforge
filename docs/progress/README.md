@@ -25,3 +25,4 @@ This folder records the implementation and planning trail by session.
 | 2026-04-06 | `260406_10-screen5-screen6-figma-sync.md` | Screen 5 + Screen 6 implementation complete with security hardening, Figma sync (6 captures: desktop+mobile) |
 | 2026-04-07 | `260407_01-screen7-topic-decision.md` | Screen 7 topic decision full-stack: GPT-4o, 202/polling, role-based UI, Figma 6 captures |
 | 2026-04-07 | `260407_02-screen5-role-reaction.md` | Screen 5 role reaction buttons (ok/burden/prefer_other), DB migration, optimistic UI, Figma recapture |
+| 2026-04-07 | `260407_03-screen6-team-insight.md` | Screen 6 P0-B TeamInsightPanel: server-side axis aggregation, mini radar SVG, Figma recapture (248:2, 249:2) |
