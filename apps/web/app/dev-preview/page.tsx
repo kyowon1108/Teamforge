@@ -10,11 +10,13 @@ import SurveyClient from '../team/[teamId]/survey/survey-client';
 import ResultClient from '../team/[teamId]/result/result-client';
 import KickoffDashboardClient from '../team/[teamId]/dashboard/kickoff-dashboard-client';
 import TopicDecisionClient from '../team/[teamId]/topic/topic-client';
+import BrainstormClient from '../team/[teamId]/topic/brainstorm/brainstorm-client';
 import AppHeader from '@/components/layout/AppHeader';
 import { Globe, GitBranch } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { TopicItem } from '../team/[teamId]/topic/topic-client';
+import type { BrainstormIdea } from '@/components/brainstorm/IdeaCard';
 
 const MOCK_USER_NAME = '이교원';
 
@@ -35,6 +37,140 @@ const MOCK_TEAMS = [
     role: 'member' as const,
     memberCount: 3,
     createdAt: new Date('2026-04-02'),
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Brainstorm mocks
+// ---------------------------------------------------------------------------
+
+const MOCK_BRAINSTORM_IDEAS: BrainstormIdea[] = [
+  {
+    id: 'i1',
+    sessionId: 's1',
+    userId: 'u1',
+    title: '캠퍼스 중고거래 플랫폼',
+    description: '학생 간 물품 교환 서비스',
+    type: 'original',
+    createdAt: '2026-04-08T10:00:00Z',
+    user: { name: '이교원' },
+    reactions: [{ type: 'like', userId: 'u2' }],
+    buildOnAsChild: [],
+  },
+  {
+    id: 'i2',
+    sessionId: 's1',
+    userId: 'u2',
+    title: 'AI 학습 도우미',
+    description: '과목별 AI 튜터 챗봇',
+    type: 'original',
+    createdAt: '2026-04-08T10:01:00Z',
+    user: { name: '김민준' },
+    reactions: [],
+    buildOnAsChild: [],
+  },
+  {
+    id: 'i3',
+    sessionId: 's1',
+    userId: 'u3',
+    title: '학생 마켓플레이스',
+    description: '재능/서비스 거래 플랫폼',
+    type: 'original',
+    createdAt: '2026-04-08T10:02:00Z',
+    user: { name: '박서연' },
+    reactions: [
+      { type: 'like', userId: 'u1' },
+      { type: 'like', userId: 'u4' },
+    ],
+    buildOnAsChild: [],
+  },
+  {
+    id: 'i4',
+    sessionId: 's1',
+    userId: 'u2',
+    title: '중고거래 + AI 가격 추천',
+    description: 'AI가 시세 분석해 적정가 추천',
+    type: 'build_on',
+    createdAt: '2026-04-08T10:03:00Z',
+    user: { name: '김민준' },
+    reactions: [
+      { type: 'like', userId: 'u1' },
+      { type: 'like', userId: 'u3' },
+      { type: 'like', userId: 'u4' },
+    ],
+    buildOnAsChild: [{ parentIdea: { id: 'i1', title: '캠퍼스 중고거래 플랫폼' } }],
+  },
+];
+
+const MOCK_BRAINSTORM_SESSION = {
+  id: 's1',
+  teamId: 'mock-team-001',
+  phase: 'ideation' as const,
+  facilitationMode: 'async',
+  startedAt: null,
+  endAt: null,
+};
+
+const MOCK_TEAM_CAPABILITY = {
+  topStrengths: ['백엔드', 'DB'],
+  weakAreas: ['프론트엔드'],
+  aiInterestCount: 3,
+  memberCount: 4,
+};
+
+// More ideas for sharing stage
+const MOCK_SHARING_IDEAS: BrainstormIdea[] = [
+  ...MOCK_BRAINSTORM_IDEAS,
+  {
+    id: 'i5',
+    sessionId: 's1',
+    userId: 'u3',
+    title: '실시간 협업 캔버스',
+    description: '팀 프로젝트 화이트보드 도구',
+    type: 'original',
+    createdAt: '2026-04-08T10:04:00Z',
+    user: { name: '박서연' },
+    reactions: [{ type: 'like', userId: 'u1' }],
+    buildOnAsChild: [],
+  },
+  {
+    id: 'i6',
+    sessionId: 's1',
+    userId: 'u4',
+    title: '강의 요약 자동화',
+    description: '녹강 AI 요약 서비스',
+    type: 'original',
+    createdAt: '2026-04-08T10:05:00Z',
+    user: { name: '최지훈' },
+    reactions: [
+      { type: 'like', userId: 'u2' },
+      { type: 'comment', userId: 'u1', content: '좋은 아이디어!' },
+    ],
+    buildOnAsChild: [],
+  },
+  {
+    id: 'i7',
+    sessionId: 's1',
+    userId: 'u1',
+    title: '팀 매칭 플랫폼',
+    description: '프로젝트 팀원 매칭 서비스',
+    type: 'original',
+    createdAt: '2026-04-08T10:06:00Z',
+    user: { name: '이교원' },
+    reactions: [],
+    buildOnAsChild: [],
+  },
+  {
+    id: 'i8',
+    sessionId: 's1',
+    userId: 'u4',
+    title: 'AI 코드 리뷰 챗봇',
+    description: 'PR 자동 코드 리뷰 봇',
+    type: 'build_on',
+    createdAt: '2026-04-08T10:07:00Z',
+    user: { name: '최지훈' },
+    reactions: [{ type: 'like', userId: 'u3' }],
+    buildOnAsChild: [{ parentIdea: { id: 'i2', title: 'AI 학습 도우미' } }],
   },
 ];
 
@@ -284,8 +420,13 @@ export default function DevPreviewPage({
       aiGenerated: true,
       confirmedAt: null,
       reactions: [
-        { userId: 'u1', reaction: 'agree' },
-        { userId: 'u2', reaction: 'agree' },
+        { userId: 'u1', reaction: 'vote' },
+        { userId: 'u2', reaction: 'vote' },
+        { userId: 'u3', reaction: 'vote' },
+      ],
+      sourceIdeas: [
+        { id: 'i1', title: '캠퍼스 중고거래 플랫폼', userName: '이교원' },
+        { id: 'i4', title: '중고거래 + AI 가격 추천', userName: '김민준' },
       ],
     },
     {
@@ -296,7 +437,11 @@ export default function DevPreviewPage({
       tags: ['OpenAI', 'GitHub API', 'Node.js'],
       aiGenerated: true,
       confirmedAt: null,
-      reactions: [{ userId: 'u3', reaction: 'concern' }],
+      reactions: [{ userId: 'u4', reaction: 'vote' }],
+      sourceIdeas: [
+        { id: 'i2', title: 'AI 학습 도우미', userName: '김민준' },
+        { id: 'i8', title: 'AI 코드 리뷰 챗봇', userName: '최지훈' },
+      ],
     },
     {
       id: 'topic-003',
@@ -347,6 +492,81 @@ export default function DevPreviewPage({
           initialData={{ topics: MOCK_TOPICS, confirmedTopic: null }}
           httpStatus={200}
           userRole="member"
+        />
+      </div>
+    );
+  }
+
+  // Dot voting UI (new)
+  if (screen === 'kickoff-topic-voting') {
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <TopicDecisionClient
+          teamId="mock-team-001"
+          initialData={{ topics: MOCK_TOPICS, confirmedTopic: null }}
+          httpStatus={200}
+          userRole="member"
+        />
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Brainstorm previews
+  // -------------------------------------------------------------------------
+
+  // Brainstorm Stage 1: ideation (my 2 ideas, 3/4 submitted)
+  if (screen === 'brainstorm-stage1') {
+    const myIdeas = MOCK_BRAINSTORM_IDEAS.filter((i) => i.userId === 'u1');
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <BrainstormClient
+          teamId="mock-team-001"
+          session={MOCK_BRAINSTORM_SESSION}
+          initialIdeas={myIdeas}
+          teamCapability={MOCK_TEAM_CAPABILITY}
+          userRole="leader"
+          currentUserId="u1"
+          submittedCount={3}
+          totalMembers={4}
+        />
+      </div>
+    );
+  }
+
+  // Brainstorm Stage 2: sharing (all 8 ideas, 2 build-ons)
+  if (screen === 'brainstorm-stage2') {
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <BrainstormClient
+          teamId="mock-team-001"
+          session={{ ...MOCK_BRAINSTORM_SESSION, phase: 'sharing' }}
+          initialIdeas={MOCK_SHARING_IDEAS}
+          teamCapability={null}
+          userRole="leader"
+          currentUserId="u1"
+          submittedCount={4}
+          totalMembers={4}
+        />
+      </div>
+    );
+  }
+
+  // Brainstorm Stage 3: clustering (loading)
+  if (screen === 'brainstorm-stage3') {
+    return (
+      <div>
+        <AppHeader userName={MOCK_USER_NAME} />
+        <BrainstormClient
+          teamId="mock-team-001"
+          session={{ ...MOCK_BRAINSTORM_SESSION, phase: 'clustering' }}
+          initialIdeas={[]}
+          teamCapability={null}
+          userRole="leader"
+          currentUserId="u1"
         />
       </div>
     );

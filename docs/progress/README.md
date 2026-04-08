@@ -1,17 +1,17 @@
-# Progress Log Index
+# 진행 일지 인덱스
 
-This folder records the implementation and planning trail by session.
+이 폴더는 세션 단위의 구현 기록과 계획 이력을 보관한다.
 
-## Conventions
+## 규칙
 
-- One file per meaningful work session
-- File name format: `YYMMDD_NN-brief-english-desc.md`
-- Always include `Next Start`
-- Link decisions back to `decisions.md`
+- 의미 있는 작업 세션마다 파일 하나를 생성한다.
+- 파일명 형식은 `YYMMDD_NN-brief-english-desc.md`를 유지한다.
+- 항상 `다음 시작 포인트` 섹션을 포함한다.
+- 설계 결정은 `decisions.md`와 서로 연결한다.
 
-## Entries
+## 항목
 
-| Date | File | Summary |
+| 날짜 | 파일 | 요약 |
 | --- | --- | --- |
 | 2026-04-06 | `260406_01-repo-docs-structure-bootstrap.md` | Initial repository and docs governance scaffolding |
 | 2026-04-06 | `260406_02-workspace-bootstrap-scaffold.md` | Monorepo workspace, app scaffolds, and shared contracts bootstrap |
@@ -27,3 +27,8 @@ This folder records the implementation and planning trail by session.
 | 2026-04-07 | `260407_02-screen5-role-reaction.md` | Screen 5 role reaction buttons (ok/burden/prefer_other), DB migration, optimistic UI, Figma recapture |
 | 2026-04-07 | `260407_03-screen6-team-insight.md` | Screen 6 P0-B TeamInsightPanel: server-side axis aggregation, mini radar SVG, Figma recapture (248:2, 249:2) |
 | 2026-04-07 | `260407_04-survey-screen56-redesign.md` | Survey 9-section expansion (block confidence, collab checklist, AI profile), Screen 5/6 enhanced result cards |
+| 2026-04-07 | `260407_06-survey-card-ui-refresh.md` | Survey P2+P3+P6 card UI refresh: icon cards, 150ms micro-interactions, Section8 optional validation, draftStep max bug fix |
+| 2026-04-07 | `260407_07-screen5-persona-view.md` | Screen 5 leader/member persona views, role finalization (finalRole), 30s polling, TeamMembership column expansion |
+| 2026-04-07 | `260407_08-document-language-policy-korean-default.md` | 문서 기본 언어를 한국어로 통일하고 템플릿, 에이전트, 스킬 규칙을 정리 |
+| 2026-04-08 | `260408_01-current-screen-status-and-intent-summary.md` | progress 문서를 통합해 최신 screen 진행 상태와 각 screen의 의도를 한 문서로 정리 |
+| 2026-04-08 | `260408_02-screen7-brainstorm.md` | Screen 7 브레인스토밍 전체 스택 구현 (7a/7b 분리, DB 4모델, 8컴포넌트, dot voting, KF-031~033) |

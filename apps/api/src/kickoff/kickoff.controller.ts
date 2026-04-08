@@ -150,7 +150,7 @@ export class TopicController {
 
   private parseReactBody(body: unknown): {
     topicId: string;
-    reaction: 'agree' | 'concern';
+    reaction: 'agree' | 'concern' | 'vote';
   } {
     if (
       typeof body !== 'object' ||
@@ -176,10 +176,10 @@ export class TopicController {
 
     const reaction = raw.reaction;
 
-    if (reaction !== 'agree' && reaction !== 'concern') {
+    if (reaction !== 'agree' && reaction !== 'concern' && reaction !== 'vote') {
       throw new BadRequestException({
         code: 'INVALID_REACTION',
-        message: "reaction은 'agree' 또는 'concern'이어야 합니다",
+        message: "reaction은 'agree', 'concern', 또는 'vote'이어야 합니다",
       });
     }
 

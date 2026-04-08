@@ -520,7 +520,7 @@ export class KickoffService implements OnApplicationBootstrap {
     teamId: string,
     userId: string,
     topicId: string,
-    reaction: 'agree' | 'concern',
+    reaction: 'agree' | 'concern' | 'vote',
   ) {
     const membership = await this.requireMembership(teamId, userId);
 
@@ -554,6 +554,26 @@ export class KickoffService implements OnApplicationBootstrap {
         code: 'PHASE_LOCKED',
         message: '이미 확정된 주제에는 반응을 변경할 수 없습니다',
       });
+    }
+
+    // Dot voting: enforce 2-vote limit per user per team
+    if (reaction === 'vote') {
+      const existingVotes = await this.prisma.kickoffReaction.count({
+        where: { teamId, userId, reaction: 'vote' },
+      });
+
+      // Check if this is a new vote (not updating an existing one on same topic)
+      const existingOnTopic = await this.prisma.kickoffReaction.findUnique({
+        where: { topicId_userId: { topicId, userId } },
+      });
+
+      const isNewVote = !existingOnTopic || existingOnTopic.reaction !== 'vote';
+      if (isNewVote && existingVotes >= 2) {
+        throw new ForbiddenException({
+          code: 'VOTE_LIMIT_REACHED',
+          message: '투표는 최대 2표까지 가능합니다',
+        });
+      }
     }
 
     await this.prisma.kickoffReaction.upsert({
@@ -602,10 +622,47 @@ export class KickoffService implements OnApplicationBootstrap {
       return { topicId: topic.id, title: topic.title, confirmedAt: topic.confirmedAt };
     }
 
+    // Build decision summary from brainstorm data
+    let decisionSummary = '';
+    if (topic.sourceIdeaIds.length > 0) {
+      const sourceIdeas = await this.prisma.brainstormIdea.findMany({
+        where: { id: { in: topic.sourceIdeaIds } },
+        include: { user: { select: { name: true } } },
+      });
+
+      const totalMembers = await this.prisma.teamMembership.count({
+        where: { teamId, role: { not: 'observer' } },
+      });
+
+      const totalIdeas = await this.prisma.brainstormIdea.count({
+        where: { session: { teamId } },
+      });
+
+      const totalTopics = await this.prisma.kickoffTopic.count({
+        where: { teamId },
+      });
+
+      const ideaCredits = sourceIdeas
+        .map((idea) => `${idea.user.name ?? '익명'}: ${idea.title}`)
+        .join(', ');
+
+      decisionSummary = `\n--- AI 결정 기록 ---\n팀원 ${totalMembers}명의 브레인스토밍에서 ${totalIdeas}개 아이디어 발산, ${totalTopics}개 주제로 수렴. 최종 투표로 '${topic.title}' 확정. 핵심 아이디어: ${ideaCredits}`;
+    }
+
     const confirmedAt = new Date();
+    const updatedRationale = decisionSummary
+      ? topic.rationale + decisionSummary
+      : topic.rationale;
+
     await this.prisma.kickoffTopic.update({
       where: { id: topicId },
-      data: { confirmedAt },
+      data: { confirmedAt, rationale: updatedRationale },
+    });
+
+    // Auto-transition brainstorm session to confirmed
+    await this.prisma.brainstormSession.updateMany({
+      where: { teamId, phase: 'voting' },
+      data: { phase: 'confirmed', endAt: confirmedAt },
     });
 
     return { topicId: topic.id, title: topic.title, confirmedAt };

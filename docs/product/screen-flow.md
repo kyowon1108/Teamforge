@@ -30,7 +30,8 @@ Login (OAuth)
       -> Skill Assessment
       -> Personal Result
       -> Team Dashboard (팀별)
-      -> Topic Decision
+      -> Brainstorm (발산+공유+AI정리)
+      -> Topic Decision (투표+확정)
       -> System Framing
       -> Technical Narrowing
       -> Handoff Layer
@@ -54,8 +55,9 @@ Login (OAuth)
 | 4 Skill Assessment | `/team/[teamId]/survey` | team membership exists, role is leader or member | survey submitted or saved | ✅ | implemented |
 | 5 Personal Result | `/team/[teamId]/result` | survey submitted (leader/member only) | role reaction saved or skipped | ⚠️ | implemented (반응 버튼 개선 필요 — P0-A) |
 | 6 Team Dashboard | `/dashboard` (global) + `/team/[teamId]/dashboard` (per-team) | authenticated | kickoff CTA clicked (all surveys submitted) | ⚠️ | implemented (팀 스킬 요약 패널 미구현 — P0-B) |
-| 7 Topic Decision | `/team/[teamId]/topic` | all surveys submitted (phase: survey_complete) | topic confirmed by leader | ✅ | implemented |
-| 8a System Framing | `/team/[teamId]/structure` | topic confirmed (phase: topic_confirmed) | structure blocks accepted by leader | ⬜ | ready-for-build |
+| 7a Brainstorm | `/team/[teamId]/topic/brainstorm` | all surveys submitted (phase: survey_complete) | AI 클러스터링 완료, Stage 4로 전환 | ⬜ | ready-for-build (KF-031) |
+| 7b Topic Decision | `/team/[teamId]/topic` | 브레인스토밍 Stage 3 완료 | topic confirmed by leader | ⬜ | ready-for-build (KF-031) |
+| 8a System Framing | `/team/[teamId]/structure` | topic confirmed via 7b (phase: topic_confirmed) | structure blocks accepted by leader | ⬜ | ready-for-build |
 | 8b Technical Narrowing | `/team/[teamId]/stack` | structure accepted (phase: structure_accepted) | stack confirmed by leader | ⬜ | ready-for-build |
 | 9 Handoff Layer | `/team/[teamId]/handoff` | stack confirmed (phase: stack_confirmed) | all artifacts accepted by leader | ⬜ | needs-adr (KF-015) |
 | 10 Contract Gate | `/team/[teamId]/contract` | handoff accepted (phase: handoff_accepted) | kickoff contract signed by leader | ⬜ | needs-adr (KF-015) |
@@ -99,7 +101,8 @@ Legend:
 | 5 Personal Result | `/team/[teamId]/result` | rw | rw | - | Observer redirects to `/dashboard` |
 | 6 Team Dashboard (global) | `/dashboard` | rw | rw | r | Shows all teams user belongs to; CTA buttons for create/join |
 | 6 Team Dashboard (per-team) | `/team/[teamId]` | rw | rw | r | Observer sees aggregated view, no edit actions |
-| 7 Topic Decision | `/team/[teamId]/topic` | rw | react | r | leader: 주제 선택+확정; member: 이모지 반응만; observer: 읽기 전용. topic_confirmed 이후 전체 read-only (KF-023) |
+| 7a Brainstorm | `/team/[teamId]/topic/brainstorm` | rw | rw | r | leader/member: 아이디어 작성+Build-on+공감; leader: 단계 전환+AI 정리 요청; observer: 읽기 전용 (KF-031) |
+| 7b Topic Decision | `/team/[teamId]/topic` | rw | react | r | leader: Dot voting+주제 확정+커스텀 입력; member: Dot voting(인당 2표); observer: 읽기 전용. topic_confirmed 이후 전체 read-only (KF-023, KF-033) |
 | 8 Architecture Builder | `/team/[teamId]/kickoff/architecture` | rw | rw | r | Observer cannot select options |
 | 9 Handoff Layer | `/team/[teamId]/kickoff/handoff` | rw | r | r | Member views generated artifacts, cannot regenerate |
 | 10 Contract Gate | `/team/[teamId]/kickoff/summary` | rw + sign | r + react | r | Leader signs; member acknowledges; observer reads |
@@ -229,10 +232,15 @@ Screen 4 — Skill Assessment (/team/[teamId]/survey)
       -> Screen 6 — Team Dashboard (/team/[teamId]/dashboard)
           [all roles: see aggregate survey status]
           [gate: ALL members submitted survey]
-          -> Screen 7 — Topic Decision (/team/[teamId]/topic)
-              [leader: confirm topic]
-              [member: react]
-              -> Screen 8a — System Framing (/team/[teamId]/structure)
+          -> Screen 7a — Brainstorm (/team/[teamId]/topic/brainstorm)
+              [Stage 1: leader/member 개별 아이디어 발산]
+              [Stage 2: 전체 공유 + Build-on + 공감]
+              [Stage 3: AI 클러스터링 (GPT-4o)]
+              -> Screen 7b — Topic Decision (/team/[teamId]/topic)
+                  [Stage 4: Dot voting (인당 2표)]
+                  [leader: confirm topic]
+                  [member: vote]
+                  -> Screen 8a — System Framing (/team/[teamId]/structure)
                   [leader: accept architecture blocks]
                   [member: react]
                   -> Screen 8b — Technical Narrowing (/team/[teamId]/stack)
@@ -260,7 +268,8 @@ observer: can enter Screen 6, 7, 8a, 8b, 10, 11 in read-only mode
 |--------|---------------|-------|
 | 5 Personal Result | `/team/[teamId]/result` | Individual; no shared state |
 | 6 Team Dashboard (per-team) | `/team/[teamId]/dashboard` | Replaces current `/team/[teamId]` fallback |
-| 7 Topic Decision | `/team/[teamId]/topic` | Was `/team/[teamId]/kickoff/topic` in old table; simplified |
+| 7a Brainstorm | `/team/[teamId]/topic/brainstorm` | 신규. 팀원 발산 + 공유 + AI 클러스터링 (KF-031) |
+| 7b Topic Decision | `/team/[teamId]/topic` | 기존 Screen 7. Dot voting + 리더 확정으로 리팩토링 (KF-031, KF-033) |
 | 8a System Framing | `/team/[teamId]/structure` | Was `/team/[teamId]/kickoff/architecture` |
 | 8b Technical Narrowing | `/team/[teamId]/stack` | New dedicated route |
 | 9 Handoff Layer | `/team/[teamId]/handoff` | needs-adr (see KF-015) |
@@ -398,57 +407,108 @@ Scoring rules:
 
 ---
 
-### Screen 7 — Topic Decision
+### Screen 7a -- Brainstorm (신규)
 
-**Route:** `/team/[teamId]/topic`
+**경로:** `/team/[teamId]/topic/brainstorm`
 
-**Entry condition:**
-- all members submitted survey (same gate as kickoff unlock in Screen 6)
-- authenticated, team membership exists
-- observer: allowed in read-only mode
+**상세 설계:** `docs/product/screen7-brainstorm-flow.md` 참조
 
-**Core UI:**
-- AI-generated topic shortlist (3–5 suggestions) based on team's combined survey profiles
-- Each topic card shows: title, brief rationale, tag cloud (tech keywords)
-- Leader action: select one topic, or enter a custom topic
-- Member action: "좋아요" / "고민돼요" reaction per topic card
-- Reaction tally visible to all
-- Confirm button (leader only): locks the topic and advances phase
-- Phase lock indicator: once confirmed, topic cannot be changed without leader re-edit
+**진입 조건:**
+- 인증 완료, 팀 멤버십 존재
+- 팀 phase가 `survey_complete` 이상 (모든 leader/member가 설문 제출 완료)
+- observer: 읽기 전용 접근 허용
 
-**Realtime events:**
-- `topic:reaction` → updates reaction counts live
-- `topic:confirmed` → all clients see topic locked state and CTA to next screen
-- ⚠️ Socket.io deferred to Screen 11 (ADR-004). Using 10-second polling fallback until then.
+**핵심 UI (3단계):**
 
-**API dependencies:**
-- `GET /api/teams/:teamId/topic` — AI-generated topic list + job status (returns 202 if job pending, 200 if done/failed). Triggers job creation on first call if no cached result exists.
-- `POST /api/teams/:teamId/topic/react` — save or update member reaction (upsert by topicId + userId)
-- `POST /api/teams/:teamId/topic/confirm` — leader confirms topic, transitions phase to `topic_confirmed`. Body may include `customTopic` for leader-entered custom topic.
+- **Stage 1 -- Ideation (개별 발산):** 7분 가이드 타이머, 본인 아이디어만 보임, 팀 역량 요약 사이드바 표시 (AI 주제 제안 없음 -- 앵커링 방지)
+- **Stage 2 -- Sharing + Build-on:** 전체 아이디어 실명 공개, 공감(하트) 토글, Build-on 작성 (single-parent, 깊이 1단계, KF-032)
+- **Stage 3 -- AI Clustering:** GPT-4o가 아이디어를 3~5개 주제 클러스터로 정리. 202/200 polling 패턴 (KF-020)
 
-**Role differences:**
+**실시간 이벤트:**
+- Socket.io 미도입 (KF-022). Stage 2 공감/Build-on 갱신은 10초 폴링.
+
+**API 의존성:**
+- `POST /api/teams/:teamId/brainstorm/ideas` -- 아이디어 생성
+- `GET /api/teams/:teamId/brainstorm/ideas/mine` -- Stage 1 본인 아이디어
+- `GET /api/teams/:teamId/brainstorm/ideas` -- Stage 2 전체 아이디어
+- `POST /api/teams/:teamId/brainstorm/ideas/:ideaId/empathy` -- 공감 토글
+- `POST /api/teams/:teamId/brainstorm/ideas/:ideaId/buildon` -- Build-on 생성
+- `POST /api/teams/:teamId/brainstorm/advance` -- Stage 1 -> 2 전환 (leader only)
+- `POST /api/teams/:teamId/brainstorm/cluster` -- AI 클러스터링 요청 (leader only, 202)
+- `GET /api/teams/:teamId/brainstorm/cluster` -- 클러스터링 결과 폴링
+
+**역할 분기:**
 
 | | leader | member | observer |
 |-|--------|--------|----------|
-| View topic suggestions | rw | rw | r |
-| React to topics | yes | yes | no |
-| Confirm topic | yes | no | no |
-| Enter custom topic | yes | no | no |
+| 아이디어 작성 | rw | rw | - |
+| 공감/Build-on | yes | yes | no |
+| 단계 전환 | yes | no | no |
+| AI 정리 요청 | yes | no | no |
+| 재생성 요청 | yes (최대 2회) | no | no |
 
-**Phase lock behavior (topic_confirmed):**
-- Once confirmed, topic cards render read-only. Reaction buttons hidden. Confirmed badge shown.
-- Re-editing after confirmation is not implemented in this phase (KF-023).
-- CTA changes to "다음: 아키텍처 설계" → `/team/[teamId]/structure`.
-- Non-leader clients detect phase change via 10-second polling (ADR-004).
+**DB 테이블:** `BrainstormIdea`, `BrainstormEmpathy`, `BrainstormClusterJob`, `BrainstormCluster` (KF-031)
 
-**DB tables:** `KickoffTopicJob`, `KickoffTopic`, `KickoffReaction` (KF-019)
+**에러 상태:**
+- 설문 미완료 -> Screen 6로 리다이렉트
+- 아이디어 0개로 Stage 2 진입 -> 경고 메시지 + Stage 1로 되돌리기
+- AI 클러스터링 실패 -> 재생성 버튼 (leader) 또는 수동 주제 입력 안내
+- 네트워크 오류 -> 재시도 버튼
 
-**Error states:**
-- AI topic generation pending → show "AI가 팀 프로필을 분석하고 있어요" loading screen. Poll `GET /topic` every 5s, up to 5 attempts (ADR-003).
-- AI generation failure (`status: 'failed'`) or 5 poll attempts exhausted → activate fallback: manual topic entry form (leader only). Members see "주제 분석에 실패했어요. 팀장이 직접 입력하고 있어요."
-- Leader confirms before all members reacted → allowed; show "아직 반응하지 않은 팀원이 있어요" warning, not a blocker.
-- React attempt after topic is confirmed → 409 from API; client shows "주제가 이미 확정되었습니다." and disables reaction buttons.
-- New member joins after job completed → if phase still `survey_complete`, re-evaluate canProceed in Screen 6. Screen 7 access re-blocked until new member submits survey (KF-023 scope).
+---
+
+### Screen 7b -- Topic Decision (리팩토링)
+
+**경로:** `/team/[teamId]/topic`
+
+**상세 설계:** `docs/product/screen7-brainstorm-flow.md` Stage 4 참조
+
+**진입 조건:**
+- 인증 완료, 팀 멤버십 존재
+- 브레인스토밍 Stage 3(AI 클러스터링) 완료 상태
+- observer: 읽기 전용 접근 허용
+
+**핵심 UI (Stage 4 -- Dot Voting + 확정):**
+- AI가 정리한 3~5개 클러스터가 투표 카드로 표시
+- Dot voting: 인당 2표, 같은 클러스터 중복 투표 허용 (KF-033)
+- 투표 현황 10초 폴링 갱신
+- leader: "이 주제로 확정" 버튼 (투표 결과 참고, 강제 아님)
+- leader: 커스텀 주제 직접 입력 옵션 유지
+- 확정 후 read-only 전환 (KF-023)
+- CTA: "다음: 아키텍처 설계" -> `/team/[teamId]/structure`
+
+**실시간 이벤트:**
+- Socket.io 미도입 (KF-022). 투표 현황 10초 폴링.
+- `topic:confirmed` 감지는 10초 폴링으로 대체.
+
+**API 의존성:**
+- `GET /api/teams/:teamId/topic` -- 클러스터 기반 주제 목록
+- `POST /api/teams/:teamId/topic/vote` -- Dot voting (인당 2표)
+- `GET /api/teams/:teamId/topic/votes` -- 투표 현황 집계
+- `POST /api/teams/:teamId/topic/confirm` -- 주제 확정 (leader only), phase -> `topic_confirmed`
+
+**역할 분기:**
+
+| | leader | member | observer |
+|-|--------|--------|----------|
+| 클러스터 열람 | r | r | r |
+| Dot voting | yes (2표) | yes (2표) | no |
+| 주제 확정 | yes | no | no |
+| 커스텀 주제 입력 | yes | no | no |
+
+**Phase lock 동작 (topic_confirmed):**
+- 확정 후 투표 카드 read-only 렌더링. 투표 버튼 숨김. 확정 배지 표시.
+- 재편집 불가 (KF-023).
+- CTA: "다음: 아키텍처 설계" -> `/team/[teamId]/structure`
+
+**DB 테이블:** `TopicVote` (신규, KF-033), `KickoffTopic`, `KickoffReaction` (기존, KF-019)
+
+**에러 상태:**
+- 클러스터링 미완료 -> 7a로 리다이렉트
+- 투표 초과 시도 -> "투표는 최대 2개까지 가능해요" 토스트
+- 확정 후 투표 시도 -> 409 응답, "주제가 이미 확정되었습니다" 메시지
+- 리더 확정 전 전원 미투표 -> 허용, "아직 투표하지 않은 팀원이 있어요" 경고 (차단 아님)
+- 네트워크 오류 -> 재시도 버튼
 
 ---
 

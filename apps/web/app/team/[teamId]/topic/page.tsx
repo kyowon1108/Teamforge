@@ -15,6 +15,22 @@ export default async function TopicPage({ params }: PageProps) {
   const { teamId } = params;
 
   try {
+    // Check brainstorm session — if active and not at voting/confirmed, redirect
+    try {
+      const bsRes = await apiFetch(`/api/teams/${teamId}/brainstorm`);
+      if (bsRes.ok) {
+        const bsData = (await bsRes.json()) as {
+          session?: { phase?: string };
+        };
+        const bsPhase = bsData.session?.phase;
+        if (bsPhase && bsPhase !== 'voting' && bsPhase !== 'confirmed') {
+          redirect(`/team/${teamId}/topic/brainstorm`);
+        }
+      }
+    } catch {
+      // brainstorm endpoint not available or no session — continue to topic
+    }
+
     const res = await apiFetch(`/api/teams/${teamId}/topic`);
 
     if (res.status === 401) redirect('/login');
@@ -37,7 +53,11 @@ export default async function TopicPage({ params }: PageProps) {
         />
       </div>
     );
-  } catch {
+  } catch (e) {
+    // Re-throw redirect errors (Next.js NEXT_REDIRECT)
+    if (e instanceof Error && e.message === 'NEXT_REDIRECT') throw e;
+    // Check if it's a redirect response
+    if (typeof e === 'object' && e !== null && 'digest' in e) throw e;
     redirect('/dashboard');
   }
 }

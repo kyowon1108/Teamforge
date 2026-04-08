@@ -7,13 +7,13 @@ import {
   Eye,
   Lock,
   Loader2,
-  ThumbsUp,
-  HelpCircle,
   CheckCircle,
   AlertCircle,
   Clock,
   ChevronDown,
   ChevronUp,
+  Vote,
+  FileText,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,6 +32,12 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
+interface SourceIdea {
+  id: string;
+  title: string;
+  userName?: string;
+}
+
 export interface TopicItem {
   id: string;
   title: string;
@@ -39,13 +45,14 @@ export interface TopicItem {
   tags: string[];
   aiGenerated: boolean;
   confirmedAt: string | null;
-  reactions: Array<{ userId: string; reaction: 'agree' | 'concern' }>;
+  reactions: Array<{ userId: string; reaction: 'agree' | 'concern' | 'vote' }>;
+  sourceIdeaIds?: string[];
+  sourceIdeas?: SourceIdea[];
 }
 
-interface ReactionState {
-  agree: number;
-  concern: number;
-  myReaction: 'agree' | 'concern' | null;
+interface VoteState {
+  voteCount: number;
+  myVoted: boolean;
 }
 
 export interface TopicDecisionClientProps {
@@ -62,6 +69,7 @@ type ViewStatus = 'loading' | 'completed' | 'failed' | 'timeout';
 // ---------------------------------------------------------------------------
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const MAX_VOTES = 2;
 
 const POLL_LABELS: Record<number, string> = {
   0: '팀 설문을 분석하고 있습니다',
@@ -72,28 +80,32 @@ const POLL_LABELS: Record<number, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Helper: build initial reaction map from topics
+// Helper: build vote map from topics
 // ---------------------------------------------------------------------------
 
-function buildReactionMap(
+function buildVoteMap(
   topics: TopicItem[],
   currentUserId?: string
-): Record<string, ReactionState> {
-  const map: Record<string, ReactionState> = {};
+): Record<string, VoteState> {
+  const map: Record<string, VoteState> = {};
   for (const topic of topics) {
-    let agree = 0;
-    let concern = 0;
-    let myReaction: 'agree' | 'concern' | null = null;
+    let voteCount = 0;
+    let myVoted = false;
     for (const r of topic.reactions) {
-      if (r.reaction === 'agree') agree++;
-      else concern++;
-      if (currentUserId && r.userId === currentUserId) {
-        myReaction = r.reaction;
+      if (r.reaction === 'vote') {
+        voteCount++;
+        if (currentUserId && r.userId === currentUserId) {
+          myVoted = true;
+        }
       }
     }
-    map[topic.id] = { agree, concern, myReaction };
+    map[topic.id] = { voteCount, myVoted };
   }
   return map;
+}
+
+function countMyVotes(votes: Record<string, VoteState>): number {
+  return Object.values(votes).filter((v) => v.myVoted).length;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,7 +146,7 @@ function RoleIntentBanner({
         }}
       >
         <Crown size={16} className="shrink-0" />
-        AI가 팀 설문을 분석해 주제를 제안했습니다. 주제를 선택하고 확정하세요.
+        팀원들의 투표를 확인하고 주제를 확정하세요. 각 팀원은 2표를 행사할 수 있습니다.
       </div>
     );
   }
@@ -150,7 +162,7 @@ function RoleIntentBanner({
         }}
       >
         <Users size={16} className="shrink-0" />
-        리더가 주제를 확정하기 전에 반응을 남겨주세요.
+        관심 있는 주제에 투표해 주세요 (최대 2표).
       </div>
     );
   }
@@ -166,6 +178,102 @@ function RoleIntentBanner({
     >
       <Eye size={16} className="shrink-0" />
       관찰자 모드입니다. 주제 결정을 볼 수 있지만 참여할 수 없습니다.
+    </div>
+  );
+}
+
+function VoteCounter({ used, max }: { used: number; max: number }) {
+  return (
+    <div
+      className="flex items-center gap-2 rounded-lg p-3 mb-4"
+      style={{
+        background: 'var(--tf-bg-layer-default)',
+        border: '1px solid var(--tf-stroke-neutral)',
+      }}
+    >
+      <Vote size={16} style={{ color: 'var(--tf-bg-brand-solid)' }} />
+      <span className="text-sm font-medium" style={{ color: 'var(--tf-fg-default)' }}>
+        남은 투표: {max - used}/{max}
+      </span>
+      <div className="flex gap-1 ml-auto">
+        {Array.from({ length: max }).map((_, i) => (
+          <div
+            key={i}
+            className="w-3 h-3 rounded-full"
+            style={{
+              background: i < used ? 'var(--tf-bg-brand-solid)' : 'var(--tf-stroke-neutral)',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VoteBar({ count, maxCount }: { count: number; maxCount: number }) {
+  const width = maxCount > 0 ? (count / maxCount) * 100 : 0;
+  return (
+    <div className="flex items-center gap-2 mt-2">
+      <div
+        className="flex-1 h-2 rounded-full overflow-hidden"
+        style={{ background: 'var(--tf-bg-layer-alt)' }}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${width}%`,
+            background: 'var(--tf-bg-brand-solid)',
+          }}
+        />
+      </div>
+      <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--tf-fg-default)' }}>
+        {count}표
+      </span>
+    </div>
+  );
+}
+
+function SourceIdeasAccordion({ sourceIdeas }: { sourceIdeas: SourceIdea[] }) {
+  const [open, setOpen] = useState(false);
+
+  if (sourceIdeas.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="flex items-center gap-1.5 text-xs font-medium transition-colors"
+        style={{ color: 'var(--tf-fg-muted)' }}
+      >
+        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        원본 아이디어 {sourceIdeas.length}개
+      </button>
+      {open && (
+        <div className="mt-2 flex flex-col gap-1.5 pl-3">
+          {sourceIdeas.map((idea) => (
+            <div
+              key={idea.id}
+              className="text-xs py-1.5 px-2.5 rounded"
+              style={{
+                background: 'var(--tf-bg-layer-alt)',
+                color: 'var(--tf-fg-muted)',
+                borderLeft: '2px solid var(--tf-stroke-neutral)',
+              }}
+            >
+              {idea.userName && (
+                <span className="font-medium" style={{ color: 'var(--tf-fg-default)' }}>
+                  {idea.userName}
+                </span>
+              )}
+              {idea.userName && ' — '}
+              {idea.title}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -237,51 +345,34 @@ function TopicTimeoutBanner() {
   );
 }
 
-function ReactionSummaryBar({
-  agree,
-  concern,
-}: {
-  agree: number;
-  concern: number;
-}) {
-  const total = agree + concern;
-  return (
-    <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--tf-fg-muted)' }}>
-      <span className="flex items-center gap-1">
-        <ThumbsUp size={13} />
-        {agree}
-      </span>
-      <span className="flex items-center gap-1">
-        <HelpCircle size={13} />
-        {concern}
-      </span>
-      {total > 0 && <span>{total}명 반응</span>}
-    </div>
-  );
-}
-
 function DecisionCard({
   topic,
   userRole,
   isLocked,
   isConfirmed,
   isSelected,
-  reaction,
+  vote,
+  maxVoteCount,
+  canVote,
   onSelect,
-  onReact,
+  onVote,
 }: {
   topic: TopicItem;
   userRole: 'leader' | 'member' | 'observer';
   isLocked: boolean;
   isConfirmed: boolean;
   isSelected: boolean;
-  reaction: ReactionState;
+  vote: VoteState;
+  maxVoteCount: number;
+  canVote: boolean;
   onSelect: () => void;
-  onReact: (r: 'agree' | 'concern') => void;
+  onVote: () => void;
 }) {
   const borderColor = isConfirmed || isSelected
     ? 'var(--tf-bg-brand-solid)'
     : 'var(--tf-stroke-neutral)';
+
+  const voteDisabled = !canVote && !vote.myVoted;
 
   return (
     <div
@@ -295,7 +386,9 @@ function DecisionCard({
       tabIndex={userRole === 'leader' && !isLocked ? 0 : undefined}
       onKeyDown={
         userRole === 'leader' && !isLocked
-          ? (e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(); }
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') onSelect();
+            }
           : undefined
       }
       aria-pressed={userRole === 'leader' ? isSelected : undefined}
@@ -350,6 +443,14 @@ function DecisionCard({
         </div>
       )}
 
+      {/* Source ideas accordion */}
+      {topic.sourceIdeas && topic.sourceIdeas.length > 0 && (
+        <SourceIdeasAccordion sourceIdeas={topic.sourceIdeas} />
+      )}
+
+      {/* Vote bar */}
+      <VoteBar count={vote.voteCount} maxCount={maxVoteCount} />
+
       {/* Divider */}
       <div
         className="h-px my-3"
@@ -358,60 +459,35 @@ function DecisionCard({
 
       {/* Footer row */}
       <div className="flex items-center justify-between gap-3">
-        <ReactionSummaryBar agree={reaction.agree} concern={reaction.concern} />
+        <span className="text-xs" style={{ color: 'var(--tf-fg-muted)' }}>
+          {vote.voteCount}표 획득
+        </span>
 
-        {/* Member reaction buttons */}
-        {userRole === 'member' && !isLocked && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={(e) => { e.stopPropagation(); onReact('agree'); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{
-                minHeight: '44px',
-                background:
-                  reaction.myReaction === 'agree'
-                    ? 'color-mix(in srgb, var(--tf-fg-positive) 15%, transparent)'
-                    : 'color-mix(in srgb, var(--tf-fg-muted) 10%, transparent)',
-                color:
-                  reaction.myReaction === 'agree'
-                    ? 'var(--tf-fg-positive)'
-                    : 'var(--tf-fg-muted)',
-                border:
-                  reaction.myReaction === 'agree'
-                    ? '1px solid color-mix(in srgb, var(--tf-fg-positive) 30%, transparent)'
-                    : '1px solid transparent',
-              }}
-              aria-label="찬성"
-              aria-pressed={reaction.myReaction === 'agree'}
-            >
-              <ThumbsUp size={14} />
-              찬성
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onReact('concern'); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{
-                minHeight: '44px',
-                background:
-                  reaction.myReaction === 'concern'
-                    ? 'color-mix(in srgb, var(--tf-fg-warning) 15%, transparent)'
-                    : 'color-mix(in srgb, var(--tf-fg-muted) 10%, transparent)',
-                color:
-                  reaction.myReaction === 'concern'
-                    ? 'var(--tf-fg-warning)'
-                    : 'var(--tf-fg-muted)',
-                border:
-                  reaction.myReaction === 'concern'
-                    ? '1px solid color-mix(in srgb, var(--tf-fg-warning) 30%, transparent)'
-                    : '1px solid transparent',
-              }}
-              aria-label="우려"
-              aria-pressed={reaction.myReaction === 'concern'}
-            >
-              <HelpCircle size={14} />
-              우려
-            </button>
-          </div>
+        {/* Vote button for members */}
+        {(userRole === 'member' || userRole === 'leader') && !isLocked && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onVote();
+            }}
+            disabled={voteDisabled}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
+            style={{
+              minHeight: '36px',
+              background: vote.myVoted
+                ? 'var(--tf-bg-brand-solid)'
+                : 'color-mix(in srgb, var(--tf-bg-brand-solid) 10%, transparent)',
+              color: vote.myVoted ? 'white' : 'var(--tf-bg-brand-solid)',
+              border: vote.myVoted
+                ? 'none'
+                : '1px solid color-mix(in srgb, var(--tf-bg-brand-solid) 30%, transparent)',
+            }}
+            aria-label={vote.myVoted ? '투표 취소' : '투표하기'}
+            aria-pressed={vote.myVoted}
+          >
+            <Vote size={14} />
+            {vote.myVoted ? '투표함' : '투표하기'}
+          </button>
         )}
       </div>
     </div>
@@ -511,27 +587,53 @@ function ManualTopicAccordion({ onSubmit }: { onSubmit: (title: string, rational
   );
 }
 
+function AiDecisionRecordCard({ rationale }: { rationale: string }) {
+  const separator = '--- 결정 기록 ---';
+  const sepIndex = rationale.indexOf(separator);
+  if (sepIndex === -1) return null;
+
+  const record = rationale.slice(sepIndex + separator.length).trim();
+  if (!record) return null;
+
+  return (
+    <div
+      className="rounded-xl p-5 mt-4"
+      style={{
+        background: 'var(--tf-bg-layer-default)',
+        border: '1px solid var(--tf-stroke-neutral)',
+      }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <FileText size={16} style={{ color: 'var(--tf-fg-info)' }} />
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--tf-fg-default)' }}>
+          AI 결정 기록
+        </h3>
+      </div>
+      <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: 'var(--tf-fg-muted)' }}>
+        {record}
+      </p>
+    </div>
+  );
+}
+
 function StickyActionGate({
   selectedTopicId,
-  reactions,
+  votes,
   onConfirm,
 }: {
   selectedTopicId: string | null;
-  reactions: Record<string, ReactionState>;
+  votes: Record<string, VoteState>;
   onConfirm: () => void;
 }) {
-  // Aggregate reactions for selected topic
-  const selectedReaction = selectedTopicId ? reactions[selectedTopicId] : null;
-  const agreeCount = selectedReaction?.agree ?? 0;
-  const concernCount = selectedReaction?.concern ?? 0;
-  const totalReactions = agreeCount + concernCount;
+  const selectedVote = selectedTopicId ? votes[selectedTopicId] : null;
+  const voteCount = selectedVote?.voteCount ?? 0;
 
   return (
     <div
       className="fixed bottom-0 left-0 right-0 border-t"
       style={{
-        background: 'var(--tf-surface-card)',
-        borderColor: 'var(--tf-border-subtle)',
+        background: 'var(--tf-bg-layer-default)',
+        borderColor: 'var(--tf-stroke-neutral)',
         padding: 'calc(1rem) 1rem',
         paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
       }}
@@ -553,21 +655,11 @@ function StickyActionGate({
       ) : (
         <>
           <div className="flex items-center justify-center gap-3 mb-3 text-sm">
-            {totalReactions === 0 ? (
-              <span style={{ color: 'var(--tf-fg-muted)' }}>아직 팀 반응 0건</span>
-            ) : (
-              <>
-                <span className="flex items-center gap-1" style={{ color: 'var(--tf-fg-muted)' }}>
-                  <ThumbsUp size={14} />
-                  {agreeCount}
-                </span>
-                <span className="flex items-center gap-1" style={{ color: 'var(--tf-fg-muted)' }}>
-                  <HelpCircle size={14} />
-                  {concernCount}
-                </span>
-              </>
-            )}
-            {agreeCount > concernCount && agreeCount > 0 && (
+            <span className="flex items-center gap-1" style={{ color: 'var(--tf-fg-muted)' }}>
+              <Vote size={14} />
+              {voteCount}표 획득
+            </span>
+            {voteCount > 0 && (
               <span
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
                 style={{
@@ -665,12 +757,16 @@ export default function TopicDecisionClient({
   const [topics, setTopics] = useState<TopicItem[]>(initialTopics);
   const [confirmedTopic, setConfirmedTopic] = useState<TopicItem | null>(initialConfirmed);
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  const [reactions, setReactions] = useState<Record<string, ReactionState>>(() =>
-    buildReactionMap(initialTopics)
+  const [votes, setVotes] = useState<Record<string, VoteState>>(() =>
+    buildVoteMap(initialTopics)
   );
   const [pollCount, setPollCount] = useState(0);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
+  const myVoteCount = countMyVotes(votes);
+  const maxVoteCount = Math.max(...Object.values(votes).map((v) => v.voteCount), 0);
+  const canVoteMore = myVoteCount < MAX_VOTES;
 
   // -------------------------------------------------------------------------
   // Polling (loading state)
@@ -701,7 +797,7 @@ export default function TopicDecisionClient({
           const newConfirmed = (data.confirmedTopic as TopicItem | null | undefined) ?? null;
           setTopics(newTopics);
           setConfirmedTopic(newConfirmed);
-          setReactions(buildReactionMap(newTopics));
+          setVotes(buildVoteMap(newTopics));
           setStatus('completed');
           clearInterval(timer);
         } else {
@@ -713,43 +809,29 @@ export default function TopicDecisionClient({
     }, 5000);
 
     return () => clearInterval(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, pollCount, teamId]);
 
   // -------------------------------------------------------------------------
   // Handlers
   // -------------------------------------------------------------------------
 
-  const handleReact = useCallback(
-    async (topicId: string, reaction: 'agree' | 'concern') => {
-      const prev = reactions[topicId];
+  const handleVote = useCallback(
+    async (topicId: string) => {
+      const prev = votes[topicId];
       if (!prev) return;
 
-      const isSame = prev.myReaction === reaction;
-      const newAgree =
-        reaction === 'agree'
-          ? isSame
-            ? prev.agree - 1
-            : prev.agree + (prev.myReaction === 'agree' ? 0 : 1)
-          : prev.myReaction === 'agree'
-          ? prev.agree - 1
-          : prev.agree;
-      const newConcern =
-        reaction === 'concern'
-          ? isSame
-            ? prev.concern - 1
-            : prev.concern + (prev.myReaction === 'concern' ? 0 : 1)
-          : prev.myReaction === 'concern'
-          ? prev.concern - 1
-          : prev.concern;
+      const isToggleOff = prev.myVoted;
+
+      // Check if can vote more (unless toggling off)
+      if (!isToggleOff && !canVoteMore) return;
 
       // Optimistic update
-      setReactions((r) => ({
-        ...r,
+      setVotes((v) => ({
+        ...v,
         [topicId]: {
-          agree: Math.max(0, newAgree),
-          concern: Math.max(0, newConcern),
-          myReaction: isSame ? null : reaction,
+          voteCount: isToggleOff ? prev.voteCount - 1 : prev.voteCount + 1,
+          myVoted: !isToggleOff,
         },
       }));
 
@@ -758,14 +840,14 @@ export default function TopicDecisionClient({
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topicId, reaction }),
+          body: JSON.stringify({ topicId, reaction: 'vote' }),
         });
       } catch {
         // Rollback on failure
-        setReactions((r) => ({ ...r, [topicId]: prev }));
+        setVotes((v) => ({ ...v, [topicId]: prev }));
       }
     },
-    [reactions, teamId]
+    [votes, teamId, canVoteMore]
   );
 
   const handleManualTopic = useCallback(
@@ -780,7 +862,7 @@ export default function TopicDecisionClient({
         reactions: [],
       };
       setTopics((t) => [...t, newTopic]);
-      setReactions((r) => ({ ...r, [newTopic.id]: { agree: 0, concern: 0, myReaction: null } }));
+      setVotes((v) => ({ ...v, [newTopic.id]: { voteCount: 0, myVoted: false } }));
     },
     []
   );
@@ -815,7 +897,6 @@ export default function TopicDecisionClient({
   return (
     <div className="min-h-screen" style={{ background: 'var(--tf-bg-layer-alt)' }}>
       <main className="max-w-2xl mx-auto px-4 py-6 pb-36">
-
         {/* Page title */}
         <h1
           className="text-2xl font-bold mb-4"
@@ -826,6 +907,13 @@ export default function TopicDecisionClient({
 
         {/* Role intent banner */}
         <RoleIntentBanner role={userRole} isLocked={isLocked} />
+
+        {/* Vote counter (members & leaders, not locked) */}
+        {status === 'completed' && !isLocked && (userRole === 'member' || userRole === 'leader') && (
+          <div className="mt-4">
+            <VoteCounter used={myVoteCount} max={MAX_VOTES} />
+          </div>
+        )}
 
         {/* Status states */}
         {status === 'loading' && <TopicLoadingState pollCount={pollCount} />}
@@ -843,13 +931,18 @@ export default function TopicDecisionClient({
                 isLocked={isLocked}
                 isConfirmed={confirmedTopic?.id === topic.id}
                 isSelected={selectedTopicId === topic.id}
-                reaction={reactions[topic.id] ?? { agree: 0, concern: 0, myReaction: null }}
+                vote={votes[topic.id] ?? { voteCount: 0, myVoted: false }}
+                maxVoteCount={maxVoteCount}
+                canVote={canVoteMore}
                 onSelect={() => setSelectedTopicId(topic.id)}
-                onReact={(r) => handleReact(topic.id, r)}
+                onVote={() => handleVote(topic.id)}
               />
             ))}
           </div>
         )}
+
+        {/* AI Decision Record */}
+        {confirmedTopic && <AiDecisionRecordCard rationale={confirmedTopic.rationale} />}
 
         {/* Leader: manual input accordion */}
         {userRole === 'leader' && status === 'completed' && !isLocked && (
@@ -861,7 +954,7 @@ export default function TopicDecisionClient({
       {userRole === 'leader' && !isLocked && status === 'completed' && (
         <StickyActionGate
           selectedTopicId={selectedTopicId}
-          reactions={reactions}
+          votes={votes}
           onConfirm={() => setConfirmDialogOpen(true)}
         />
       )}

@@ -21,6 +21,14 @@ enum TopicJobStatus {
   failed
 }
 
+enum BrainstormPhase {
+  ideation
+  sharing
+  clustering
+  voting
+  confirmed
+}
+
 model User {
   id              String           @id @default(uuid())
   email           String           @unique
@@ -32,6 +40,7 @@ model User {
   sessions        Session[]
   memberships     TeamMembership[]
   surveyResponses SurveyResponse[]
+  brainstormIdeas BrainstormIdea[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -79,9 +88,10 @@ model Team {
   surveyResponses  SurveyResponse[]
   kickoffTopicJob  KickoffTopicJob?
   kickoffTopics    KickoffTopic[]
-  kickoffReactions KickoffReaction[]
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  kickoffReactions    KickoffReaction[]
+  brainstormSession   BrainstormSession?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 }
 
 model TeamMembership {
@@ -138,8 +148,9 @@ model KickoffTopic {
   jobId       String
   title       String
   rationale   String
-  tags        String[]
-  aiGenerated Boolean           @default(true)
+  tags           String[]
+  sourceIdeaIds  String[]
+  aiGenerated    Boolean           @default(true)
   confirmedAt DateTime?
   createdAt   DateTime          @default(now())
   team        Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -159,4 +170,58 @@ model KickoffReaction {
   team      Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([topicId, userId])
+}
+
+model BrainstormSession {
+  id               String          @id @default(cuid())
+  teamId           String          @unique
+  phase            BrainstormPhase @default(ideation)
+  facilitationMode String          @default("async")
+  startedAt        DateTime?
+  endAt            DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  team             Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  ideas            BrainstormIdea[]
+}
+
+model BrainstormIdea {
+  id               String             @id @default(cuid())
+  sessionId        String
+  userId           String
+  title            String
+  description      String
+  type             String             @default("original")
+  createdAt        DateTime           @default(now())
+  session          BrainstormSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user             User               @relation(fields: [userId], references: [id])
+  reactions        IdeaReaction[]
+  buildOnAsParent  IdeaBuildOnEdge[]  @relation("parentIdea")
+  buildOnAsChild   IdeaBuildOnEdge[]  @relation("childIdea")
+
+  @@index([sessionId, userId])
+}
+
+model IdeaBuildOnEdge {
+  id           String         @id @default(cuid())
+  parentIdeaId String
+  childIdeaId  String
+  createdBy    String
+  createdAt    DateTime       @default(now())
+  parentIdea   BrainstormIdea @relation("parentIdea", fields: [parentIdeaId], references: [id], onDelete: Cascade)
+  childIdea    BrainstormIdea @relation("childIdea", fields: [childIdeaId], references: [id], onDelete: Cascade)
+
+  @@unique([parentIdeaId, childIdeaId])
+}
+
+model IdeaReaction {
+  id        String         @id @default(cuid())
+  ideaId    String
+  userId    String
+  type      String
+  content   String?
+  createdAt DateTime       @default(now())
+  idea      BrainstormIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, userId, type])
 }

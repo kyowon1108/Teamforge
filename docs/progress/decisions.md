@@ -314,3 +314,43 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `apps/api/prisma/schema.prisma`, `packages/contracts/src/roles/role-finalize.schema.ts`, `apps/api/src/survey/survey.service.ts`, `apps/api/src/survey/survey.controller.ts`, `apps/api/src/kickoff/kickoff.service.ts`, `apps/api/src/kickoff/kickoff.controller.ts`, `apps/web/app/team/[teamId]/result/page.tsx`, `apps/web/app/team/[teamId]/result/result-client.tsx`, `apps/web/components/result/`
 
 **일지:** [260407_07](./260407_07-screen5-persona-view.md)
+
+## KF-030 — 내부 문서 기본 언어는 한국어, 파일명과 식별자는 영어 유지
+
+**결론:** TeamForge 내부 운영 문서의 기본 언어를 한국어로 통일한다. `docs/`, 프로젝트 전용 Claude 운영 문서, 문서 생성 템플릿, review/runbook/ADR/progress 문서 본문은 한국어로 작성한다. 다만 파일명 slug, 파일 경로, 명령어, 환경 변수, API path, 코드 식별자, Prisma 모델명 등은 영어 원문을 유지한다.
+
+**이유:** 현재 저장소는 한국어와 영어가 문서마다 섞여 있어 문서 생성 결과가 일관되지 않고, 에이전트와 스킬이 매번 언어 선택을 다시 판단해야 했다. 언어 정책을 문서와 템플릿에 명시하면 신규 문서 생성 시 모호함이 줄고, 문서 품질과 토큰 효율도 함께 개선된다.
+
+**영향 범위:** `docs/architecture/document-language-policy.md`, `docs/_templates/`, `CLAUDE.md`, `.claude/commands/tfo.md`, `.claude/agents/tf-docs.md`, `.claude/agents/tf-flow.md`, `.claude/agents/tf-db.md`, `.claude/agents/tf-design.md`, `/Users/kapr/.claude/skills/teamforge-docs/SKILL.md`
+
+**일지:** [260407_08](./260407_08-document-language-policy-korean-default.md)
+
+## KF-031 — Screen 7 분리: 7a(Brainstorm) + 7b(Topic Decision) 2단계 구조
+
+**결론:** Screen 7을 7a(Brainstorm)와 7b(Topic Decision) 두 단계로 분리한다. 7a에서는 팀원들이 자유롭게 아이디어를 제출하고 build-on/리액션을 통해 발산하며, 7b에서는 dot voting과 리더 확정을 통해 킥오프 주제를 결정한다.
+
+**이유:** 아이디어 생성(발산)과 주제 확정(수렴)은 성격이 다른 활동이다. 하나의 화면에 합치면 UI 복잡도가 높아지고, 단계별 상태 관리가 어려워진다. 분리하면 각 단계의 UX 목표를 명확히 하고, BrainstormPhase enum으로 상태 전이를 체계적으로 관리할 수 있다.
+
+**영향 범위:** `apps/api/prisma/schema.prisma` (BrainstormSession, BrainstormPhase), `apps/web/app/team/[teamId]/topic/brainstorm/`, `apps/web/app/team/[teamId]/topic/`, `docs/product/screen-flow.md`, `docs/product/screen7-brainstorm-flow.md`
+
+**일지:** [260408_02](./260408_02-screen7-brainstorm.md)
+
+## KF-032 — Build-on은 single-parent MVP, 깊이 1단계 고정
+
+**결론:** 브레인스토밍의 build-on(아이디어 확장) 기능은 single-parent 구조로 구현하며, 깊이를 1단계로 고정한다. 하나의 아이디어에 대해 build-on을 달 수 있지만, build-on에 대한 추가 build-on은 허용하지 않는다.
+
+**이유:** 트리 구조 build-on은 UI 렌더링 복잡도와 모바일 레이아웃 처리 비용이 크다. MVP 단계에서는 flat 1단계 확장만으로 아이디어 발전 흐름을 충분히 표현할 수 있다. IdeaBuildOnEdge 테이블 구조는 향후 깊이 확장이 필요할 때 parentId 체이닝으로 대응 가능하다.
+
+**영향 범위:** `apps/api/prisma/schema.prisma` (IdeaBuildOnEdge), `packages/contracts/src/brainstorm/` (BuildOnBodySchema), `apps/api/src/brainstorm/brainstorm.service.ts`, `apps/web/components/brainstorm/BuildOnModal.tsx`
+
+**일지:** [260408_02](./260408_02-screen7-brainstorm.md)
+
+## KF-033 — Dot voting 인당 2표, 폴링 기반, 리더 확정은 투표 결과와 독립
+
+**결론:** 브레인스토밍 아이디어에 대한 dot voting은 팀원당 2표를 부여하며, 투표 결과는 폴링 방식으로 집계한다. 리더의 최종 주제 확정은 투표 순위를 참고하되, 반드시 최다 득표 아이디어를 선택할 의무는 없다. 리더는 투표 결과와 독립적으로 주제를 확정할 수 있다.
+
+**이유:** 인당 2표는 선호도 분산과 집중 사이의 균형점이다. 1표는 합의 도출이 어렵고, 3표 이상은 무차별 투표 경향이 생긴다. 리더 재량 확정은 소규모 팀(3~8인)에서 다수결보다 효과적인 의사결정 방식이며, Screen 10 Contract Gate에서 팀 합의를 최종 확인하는 구조와 보완적이다.
+
+**영향 범위:** `apps/api/src/kickoff/kickoff.service.ts`, `apps/api/src/kickoff/kickoff.controller.ts`, `apps/web/app/team/[teamId]/topic/topic-client.tsx`, `apps/web/components/brainstorm/IdeaCard.tsx`
+
+**일지:** [260408_02](./260408_02-screen7-brainstorm.md)
