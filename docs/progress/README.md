@@ -32,3 +32,4 @@
 | 2026-04-07 | `260407_08-document-language-policy-korean-default.md` | 문서 기본 언어를 한국어로 통일하고 템플릿, 에이전트, 스킬 규칙을 정리 |
 | 2026-04-08 | `260408_01-current-screen-status-and-intent-summary.md` | progress 문서를 통합해 최신 screen 진행 상태와 각 screen의 의도를 한 문서로 정리 |
 | 2026-04-08 | `260408_02-screen7-brainstorm.md` | Screen 7 브레인스토밍 전체 스택 구현 (7a/7b 분리, DB 4모델, 8컴포넌트, dot voting, KF-031~033) |
+| 2026-04-08 | `260408_03-merge-socketio.md` | Multi-parent merge + Socket.io 실시간 동기화 도입 (ADR-005, KF-034~035) |

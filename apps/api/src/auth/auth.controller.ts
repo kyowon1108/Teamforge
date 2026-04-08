@@ -1,16 +1,20 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
   UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { z } from 'zod';
+import type { ExchangeTokenPayload } from '@teamforge/contracts';
 import { Public } from './public.decorator';
 import { SyncSecretGuard } from './sync-secret.guard';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './current-user.decorator';
 
 const SyncUserSchema = z.object({
   email: z.string().email(),
@@ -20,7 +24,10 @@ const SyncUserSchema = z.object({
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   /**
    * POST /api/auth/sync
@@ -42,5 +49,22 @@ export class AuthController {
     }
 
     return this.authService.syncUser(parsed.data);
+  }
+
+  /**
+   * GET /api/auth/ws-token
+   * WebSocket connection short-lived token (30s expiry).
+   * Requires valid JWT (global JwtAuthGuard).
+   */
+  @Get('ws-token')
+  async getWsToken(@CurrentUser() user: ExchangeTokenPayload) {
+    const token = this.jwtService.sign(
+      { sub: user.sub },
+      {
+        secret: process.env.WS_TOKEN_SECRET ?? process.env.JWT_SECRET,
+        expiresIn: '30s',
+      },
+    );
+    return { token };
   }
 }

@@ -7,12 +7,14 @@ import {
 } from '@nestjs/common';
 import OpenAI from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
+import { TeamGateway } from '../gateways/team.gateway';
 import {
   TopicSuggestionsSchema,
   SurveyAnswersSchema,
   type IdeaSubmitBody,
   type BuildOnBody,
   type IdeaReactBody,
+  type MergeIdeasBody,
   type TopicSuggestion,
 } from '@teamforge/contracts';
 
@@ -26,7 +28,10 @@ const MAX_IDEAS_PER_USER = 5;
 export class BrainstormService {
   private readonly openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamGateway: TeamGateway,
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Private helpers
@@ -177,6 +182,8 @@ export class BrainstormService {
       },
     });
 
+    this.teamGateway.emitToTeam(teamId, 'brainstorm:idea_submitted', { idea });
+
     return idea;
   }
 
@@ -236,7 +243,71 @@ export class BrainstormService {
       return newIdea;
     });
 
+    this.teamGateway.emitToTeam(teamId, 'brainstorm:idea_submitted', { idea: result, type: 'build_on' });
+
     return result;
+  }
+
+  /**
+   * POST /api/teams/:teamId/brainstorm/ideas/merge
+   * Merge multiple ideas into a new one (sharing phase, leader/member)
+   */
+  async mergeIdeas(teamId: string, userId: string, body: MergeIdeasBody) {
+    const membership = await this.requireMembership(teamId, userId);
+
+    if (membership.role === 'observer') {
+      throw new ForbiddenException({
+        code: 'OBSERVER_FORBIDDEN',
+        message: '옵저버는 아이디어를 병합할 수 없습니다',
+      });
+    }
+
+    const session = await this.requireSession(teamId);
+
+    if (session.phase !== 'sharing') {
+      throw new ForbiddenException({
+        code: 'PHASE_LOCKED',
+        message: 'sharing 단계에서만 아이디어 병합이 가능합니다',
+      });
+    }
+
+    // Verify all parent ideas exist and belong to this session
+    const parentIdeas = await this.prisma.brainstormIdea.findMany({
+      where: { id: { in: body.parentIds }, sessionId: session.id },
+    });
+
+    if (parentIdeas.length !== body.parentIds.length) {
+      throw new NotFoundException({
+        code: 'IDEA_NOT_FOUND',
+        message: '일부 원본 아이디어를 찾을 수 없습니다',
+      });
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const newIdea = await tx.brainstormIdea.create({
+        data: {
+          sessionId: session.id,
+          userId,
+          title: body.title,
+          description: body.description,
+          type: 'merge',
+        },
+      });
+
+      await tx.ideaBuildOnEdge.createMany({
+        data: body.parentIds.map((parentIdeaId) => ({
+          parentIdeaId,
+          childIdeaId: newIdea.id,
+          createdBy: userId,
+        })),
+      });
+
+      return newIdea;
+    });
+
+    this.teamGateway.emitToTeam(teamId, 'brainstorm:idea_merged', { idea: result, parentIds: body.parentIds });
+
+    return { ...result, parentIds: body.parentIds };
   }
 
   /**
@@ -292,6 +363,8 @@ export class BrainstormService {
         content: body.content ?? null,
       },
     });
+
+    this.teamGateway.emitToTeam(teamId, 'brainstorm:idea_reacted', { ideaId, type: body.type, userId });
 
     return reaction;
   }
@@ -394,6 +467,8 @@ export class BrainstormService {
       // Fire-and-forget async clustering
       void this._clusterIdeasAsync(session.id, teamId, jobId);
     }
+
+    this.teamGateway.emitToTeam(teamId, 'brainstorm:phase_advanced', { phase: nextPhase });
 
     return { phase: nextPhase };
   }

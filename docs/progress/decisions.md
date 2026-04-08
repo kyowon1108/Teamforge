@@ -354,3 +354,23 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `apps/api/src/kickoff/kickoff.service.ts`, `apps/api/src/kickoff/kickoff.controller.ts`, `apps/web/app/team/[teamId]/topic/topic-client.tsx`, `apps/web/components/brainstorm/IdeaCard.tsx`
 
 **일지:** [260408_02](./260408_02-screen7-brainstorm.md)
+
+## KF-034 — Socket.io 조기 도입, ADR-004 supersede
+
+**결론:** ADR-004(Screen 11까지 Socket.io 지연)를 supersede하고, Screen 7 브레인스토밍 시점에 Socket.io를 도입한다. `/team` namespace, `team:{teamId}` room, 30초 유효 ws-token 인증, PrismaService 멤버십 검증 구조를 확정한다. 클라이언트는 `useTeamSocket` 훅으로 연결하며, 연결 실패 시 자동 폴링 fallback을 유지한다.
+
+**이유:** 브레인스토밍에서 아이디어 제출, build-on, merge, 리액션, dot voting이 모두 실시간으로 반영되어야 자연스러운 협업 경험이 가능하다. 10초 폴링으로는 카드 출현 지연과 build-on/merge 결과 확인 지연으로 핵심 UX가 저하된다. Screen 5의 FinalizedRoleBadge 30초 폴링도 소켓으로 전환하여 역할 확정 알림 지연을 해소했다.
+
+**영향 범위:** `apps/api/src/gateways/team.gateway.ts`, `apps/api/src/gateways/gateways.module.ts`, `apps/api/src/auth/auth.controller.ts`, `apps/api/src/brainstorm/brainstorm.service.ts`, `apps/api/src/kickoff/kickoff.service.ts`, `apps/web/lib/socket.ts`, `apps/web/hooks/useTeamSocket.ts`, `apps/web/components/result/FinalizedRoleBadge.tsx`, `docs/adr/ADR-004-socketio-introduction.md` (superseded), `docs/adr/ADR-005-socketio-early-introduction.md`
+
+**일지:** [260408_03](./260408_03-merge-socketio.md)
+
+## KF-035 — Multi-parent merge는 POST /ideas/merge 별도 엔드포인트, 최대 5개 부모
+
+**결론:** 브레인스토밍 아이디어 merge 기능을 `POST /ideas/merge` 별도 엔드포인트로 구현한다. merge된 아이디어의 `type`은 `'merge'`이며, 부모 아이디어는 최대 5개까지 허용한다. `MergeIdeasBodySchema`로 입력을 검증하고, 기존 build-on(1:1 single-parent)과 분리해 API 의미론을 명확히 한다.
+
+**이유:** build-on은 하나의 아이디어를 확장하는 1:1 관계이고, merge는 여러 아이디어를 합치는 N:1 관계다. 두 기능을 같은 엔드포인트로 처리하면 body 스키마 분기와 엣지 테이블 처리가 복잡해진다. 별도 엔드포인트로 분리하면 각각의 비즈니스 로직, 권한 검증, 실시간 이벤트 발행을 독립적으로 관리할 수 있다.
+
+**영향 범위:** `packages/contracts/src/brainstorm/idea-submit.schema.ts`, `apps/api/src/brainstorm/brainstorm.service.ts`, `apps/api/src/brainstorm/brainstorm.controller.ts`, `apps/web/components/brainstorm/MergeModal.tsx`, `apps/web/components/brainstorm/IdeaCard.tsx`, `apps/web/components/brainstorm/IdeaCardWall.tsx`
+
+**일지:** [260408_03](./260408_03-merge-socketio.md)

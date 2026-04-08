@@ -10,6 +10,7 @@ import { TeamsModule } from "./teams/teams.module";
 import { SurveyModule } from "./survey/survey.module";
 import { KickoffModule } from "./kickoff/kickoff.module";
 import { BrainstormModule } from "./brainstorm/brainstorm.module";
+import { GatewaysModule } from "./gateways/gateways.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { BrainstormModule } from "./brainstorm/brainstorm.module";
     SurveyModule,
     KickoffModule,
     BrainstormModule,
+    GatewaysModule,
   ],
   controllers: [AppController],
   providers: [

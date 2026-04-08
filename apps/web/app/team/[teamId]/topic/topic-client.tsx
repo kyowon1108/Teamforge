@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useTeamSocket } from '@/hooks/useTeamSocket';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -767,6 +768,36 @@ export default function TopicDecisionClient({
   const myVoteCount = countMyVotes(votes);
   const maxVoteCount = Math.max(...Object.values(votes).map((v) => v.voteCount), 0);
   const canVoteMore = myVoteCount < MAX_VOTES;
+
+  // -------------------------------------------------------------------------
+  // Socket.io integration
+  // -------------------------------------------------------------------------
+
+  const handleSocketEvent = useCallback((event: string, data: unknown) => {
+    switch (event) {
+      case 'topic:vote_cast': {
+        const d = data as { topicId: string; voteCount: number };
+        setVotes((prev) => ({
+          ...prev,
+          [d.topicId]: {
+            voteCount: d.voteCount,
+            myVoted: prev[d.topicId]?.myVoted ?? false,
+          },
+        }));
+        break;
+      }
+      case 'topic:confirmed': {
+        const d = data as { topic: TopicItem };
+        setConfirmedTopic(d.topic);
+        break;
+      }
+    }
+  }, []);
+
+  const { transport } = useTeamSocket({
+    teamId,
+    onEvent: handleSocketEvent,
+  });
 
   // -------------------------------------------------------------------------
   // Polling (loading state)

@@ -6,13 +6,17 @@ import {
 } from '@nestjs/common';
 import OpenAI from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
+import { TeamGateway } from '../gateways/team.gateway';
 import { TopicSuggestionsSchema, type TopicSuggestion, SurveyAnswersSchema, type SurveyAnswers } from '@teamforge/contracts';
 
 @Injectable()
 export class KickoffService implements OnApplicationBootstrap {
   private readonly openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamGateway: TeamGateway,
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Lifecycle hook — orphan job 복구
@@ -240,6 +244,8 @@ export class KickoffService implements OnApplicationBootstrap {
       where: { teamId_userId: { teamId, userId: targetUserId } },
       data: { confirmedRole: finalRole, confirmedAt: new Date(), confirmedBy: leaderId },
     });
+
+    this.teamGateway.emitToTeam(teamId, 'role:finalized', { userId: targetUserId, finalRole });
 
     return { success: true };
   }
@@ -582,6 +588,12 @@ export class KickoffService implements OnApplicationBootstrap {
       create: { topicId, teamId, userId, reaction },
     });
 
+    // Emit vote count for real-time UI update
+    const voteCount = await this.prisma.kickoffReaction.count({
+      where: { topicId, reaction: 'vote' },
+    });
+    this.teamGateway.emitToTeam(teamId, 'topic:vote_cast', { topicId, voteCount });
+
     return { topicId, userId, reaction };
   }
 
@@ -664,6 +676,8 @@ export class KickoffService implements OnApplicationBootstrap {
       where: { teamId, phase: 'voting' },
       data: { phase: 'confirmed', endAt: confirmedAt },
     });
+
+    this.teamGateway.emitToTeam(teamId, 'topic:confirmed', { topicId: topic.id });
 
     return { topicId: topic.id, title: topic.title, confirmedAt };
   }

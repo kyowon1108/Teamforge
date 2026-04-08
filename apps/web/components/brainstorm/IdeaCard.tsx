@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, MessageSquare, GitBranch, Link } from 'lucide-react';
+import { Heart, MessageSquare, GitBranch, Link, Merge, Check } from 'lucide-react';
 import { useState } from 'react';
 
 export interface BrainstormIdea {
@@ -9,11 +9,12 @@ export interface BrainstormIdea {
   userId?: string;
   title: string;
   description: string;
-  type: 'original' | 'build_on';
+  type: 'original' | 'build_on' | 'merge';
   createdAt?: string;
   user?: { name: string; image?: string | null };
   reactions?: Array<{ type: 'like' | 'comment'; userId: string; content?: string }>;
   buildOnAsChild?: Array<{ parentIdea: { id: string; title: string } }>;
+  mergeParents?: Array<{ id: string; title: string }>;
 }
 
 interface IdeaCardProps {
@@ -24,6 +25,9 @@ interface IdeaCardProps {
   onComment?: (ideaId: string, content: string) => void;
   onBuildOn?: (idea: BrainstormIdea) => void;
   currentUserId?: string;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 export default function IdeaCard({
@@ -34,6 +38,9 @@ export default function IdeaCard({
   onComment,
   onBuildOn,
   currentUserId,
+  selectable,
+  selected,
+  onSelect,
 }: IdeaCardProps) {
   const [commentOpen, setCommentOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -56,12 +63,49 @@ export default function IdeaCard({
 
   return (
     <div
-      className="rounded-lg p-4 transition-colors"
+      className="rounded-lg p-4 transition-all"
       style={{
         background: 'var(--tf-bg-layer-default)',
-        border: '1px solid var(--tf-stroke-neutral)',
+        border: selected
+          ? '2px solid var(--tf-stroke-brand)'
+          : '1px solid var(--tf-stroke-neutral)',
+        transform: selected ? 'scale(1.02)' : undefined,
+        position: 'relative',
       }}
     >
+      {/* Selection checkbox */}
+      {selectable && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect?.(idea.id);
+          }}
+          className="absolute top-3 right-3 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
+          style={{
+            borderColor: selected ? 'var(--tf-bg-brand-solid)' : 'var(--tf-stroke-neutral)',
+            background: selected ? 'var(--tf-bg-brand-solid)' : 'transparent',
+          }}
+          aria-label={selected ? '선택 해제' : '아이디어 선택'}
+          aria-pressed={selected}
+        >
+          {selected && <Check size={12} style={{ color: 'white' }} />}
+        </button>
+      )}
+
+      {/* Merge parent chip */}
+      {idea.type === 'merge' && idea.mergeParents && idea.mergeParents.length > 0 && (
+        <div
+          className="flex items-center gap-1.5 mb-2 px-2 py-1 rounded-md text-xs w-fit"
+          style={{
+            background: 'color-mix(in srgb, var(--tf-fg-info) 8%, transparent)',
+            color: 'var(--tf-fg-info)',
+          }}
+        >
+          <Merge size={12} />
+          <span>{idea.mergeParents.map((p) => p.title).join(' + ')}에서 합침</span>
+        </div>
+      )}
+
       {/* Build-on chip */}
       {idea.type === 'build_on' && parentTitle && (
         <div
@@ -195,7 +239,7 @@ export default function IdeaCard({
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             placeholder="코멘트 입력..."
-            maxLength={200}
+            maxLength={50}
             className="flex-1 rounded-lg px-3 py-2 text-xs outline-none"
             style={{
               background: 'var(--tf-bg-layer-alt)',

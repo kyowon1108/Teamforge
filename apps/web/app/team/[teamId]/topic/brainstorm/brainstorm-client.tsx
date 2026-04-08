@@ -12,6 +12,8 @@ import IdeaSubmissionCounter from '@/components/brainstorm/IdeaSubmissionCounter
 import IdeaCard, { type BrainstormIdea } from '@/components/brainstorm/IdeaCard';
 import IdeaCardWall from '@/components/brainstorm/IdeaCardWall';
 import BuildOnModal from '@/components/brainstorm/BuildOnModal';
+import MergeModal from '@/components/brainstorm/MergeModal';
+import { useTeamSocket } from '@/hooks/useTeamSocket';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,9 +77,50 @@ export default function BrainstormClient({
   const [totalMembers, setTotalMembers] = useState(initTotalMembers ?? 0);
   const [advancing, setAdvancing] = useState(false);
   const [buildOnTarget, setBuildOnTarget] = useState<BrainstormIdea | null>(null);
+  const [mergeTargets, setMergeTargets] = useState<[BrainstormIdea, BrainstormIdea] | null>(null);
 
   const myIdeas = ideas.filter((i) => i.userId === currentUserId);
   const sessionId = initialSession.id;
+
+  // -------------------------------------------------------------------------
+  // Socket.io integration
+  // -------------------------------------------------------------------------
+
+  const handleSocketEvent = useCallback((event: string, data: unknown) => {
+    switch (event) {
+      case 'brainstorm:idea_submitted':
+      case 'brainstorm:idea_merged': {
+        const d = data as { idea: BrainstormIdea };
+        setIdeas((prev) => {
+          if (prev.some((i) => i.id === d.idea.id)) return prev;
+          return [...prev, d.idea];
+        });
+        break;
+      }
+      case 'brainstorm:idea_reacted': {
+        const d = data as {
+          ideaId: string;
+          reactions: Array<{ type: 'like' | 'comment'; userId: string; content?: string }>;
+        };
+        setIdeas((prev) =>
+          prev.map((idea) =>
+            idea.id === d.ideaId ? { ...idea, reactions: d.reactions } : idea
+          )
+        );
+        break;
+      }
+      case 'brainstorm:phase_advanced': {
+        const d = data as { phase: string };
+        setPhase(d.phase as BrainstormPhase);
+        break;
+      }
+    }
+  }, []);
+
+  const { transport } = useTeamSocket({
+    teamId,
+    onEvent: handleSocketEvent,
+  });
 
   // -------------------------------------------------------------------------
   // Redirect if phase is voting/confirmed
@@ -89,10 +132,12 @@ export default function BrainstormClient({
   }, [phase, teamId, router]);
 
   // -------------------------------------------------------------------------
-  // Polling
+  // Polling (fallback when WebSocket not connected)
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (phase === 'voting' || phase === 'confirmed') return;
+    // WebSocket 연결 중이면 폴링 비활성화
+    if (transport === 'websocket') return;
 
     const timer = setInterval(async () => {
       try {
@@ -129,7 +174,7 @@ export default function BrainstormClient({
     }, POLL_INTERVAL);
 
     return () => clearInterval(timer);
-  }, [phase, teamId, router]);
+  }, [phase, teamId, router, transport]);
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -173,6 +218,35 @@ export default function BrainstormClient({
         buildOnAsChild: parentIdea
           ? [{ parentIdea: { id: parentIdea.id, title: parentIdea.title } }]
           : [],
+      };
+      setIdeas((prev) => [...prev, newIdea]);
+    },
+    [sessionId, currentUserId, ideas]
+  );
+
+  const handleMergeSubmitted = useCallback(
+    (result: {
+      id: string;
+      title: string;
+      description: string;
+      type: 'merge';
+      parentIds: [string, string];
+    }) => {
+      const parents = result.parentIds
+        .map((pid) => ideas.find((i) => i.id === pid))
+        .filter(Boolean) as BrainstormIdea[];
+
+      const newIdea: BrainstormIdea = {
+        id: result.id,
+        title: result.title,
+        description: result.description,
+        type: 'merge',
+        sessionId,
+        userId: currentUserId,
+        createdAt: new Date().toISOString(),
+        user: { name: '' },
+        reactions: [],
+        mergeParents: parents.map((p) => ({ id: p.id, title: p.title })),
       };
       setIdeas((prev) => [...prev, newIdea]);
     },
@@ -361,6 +435,7 @@ export default function BrainstormClient({
             onLike={handleLike}
             onComment={handleComment}
             onBuildOn={(idea) => setBuildOnTarget(idea)}
+            onMergeRequest={(pair) => setMergeTargets(pair)}
             currentUserId={currentUserId}
           />
 
@@ -401,6 +476,17 @@ export default function BrainstormClient({
               teamId={teamId}
               onSubmitted={handleBuildOnSubmitted}
               onClose={() => setBuildOnTarget(null)}
+            />
+          )}
+
+          {/* Merge modal */}
+          {mergeTargets && (
+            <MergeModal
+              parentIdeas={mergeTargets}
+              teamId={teamId}
+              sessionId={sessionId}
+              onSubmitted={handleMergeSubmitted}
+              onClose={() => setMergeTargets(null)}
             />
           )}
         </main>

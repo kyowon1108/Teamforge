@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { BadgeCheck, X } from 'lucide-react';
+import { useTeamSocket } from '@/hooks/useTeamSocket';
 
 interface Props {
   teamId: string;
@@ -13,7 +14,35 @@ export default function FinalizedRoleBadge({ teamId, initialFinalRole }: Props) 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const prevRoleRef = useRef<string | null>(initialFinalRole);
 
+  // -------------------------------------------------------------------------
+  // Socket.io integration
+  // -------------------------------------------------------------------------
+
+  const handleSocketEvent = useCallback((event: string, data: unknown) => {
+    if (event === 'role:finalized') {
+      const d = data as { finalRole: string | null };
+      if (prevRoleRef.current === null && d.finalRole !== null) {
+        setToastMessage(`팀장이 역할을 확정했어요: ${d.finalRole}`);
+        setTimeout(() => setToastMessage(null), 4000);
+      }
+      prevRoleRef.current = d.finalRole;
+      setFinalRole(d.finalRole);
+    }
+  }, []);
+
+  const { transport } = useTeamSocket({
+    teamId,
+    onEvent: handleSocketEvent,
+  });
+
+  // -------------------------------------------------------------------------
+  // Polling fallback (only when WebSocket not connected)
+  // -------------------------------------------------------------------------
+
   useEffect(() => {
+    // WebSocket 연결 중이면 폴링 비활성화
+    if (transport === 'websocket') return;
+
     const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
     async function poll() {
@@ -38,7 +67,7 @@ export default function FinalizedRoleBadge({ teamId, initialFinalRole }: Props) 
 
     const id = setInterval(poll, 30_000);
     return () => clearInterval(id);
-  }, [teamId]);
+  }, [teamId, transport]);
 
   return (
     <>

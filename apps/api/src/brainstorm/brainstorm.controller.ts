@@ -14,6 +14,7 @@ import {
   IdeaSubmitBodySchema,
   BuildOnBodySchema,
   IdeaReactBodySchema,
+  MergeIdeasBodySchema,
 } from '@teamforge/contracts';
 import { BrainstormService } from './brainstorm.service';
 import { ParseTeamIdPipe } from '../common/parse-team-id.pipe';
@@ -53,6 +54,28 @@ export class BrainstormController {
       });
     }
     return this.brainstormService.submitIdea(teamId, user.sub, parsed.data);
+  }
+
+  /**
+   * POST /api/teams/:teamId/brainstorm/ideas/merge
+   * Merge multiple ideas into a new one (sharing phase, leader/member)
+   * NOTE: Must be declared before ideas/:ideaId routes to prevent 'merge' matching as :ideaId
+   */
+  @Post('ideas/merge')
+  @HttpCode(HttpStatus.CREATED)
+  async mergeIdeas(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+    @Body() body: unknown,
+  ) {
+    const parsed = MergeIdeasBodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'INVALID_BODY',
+        message: 'parentIds(2~5개), title(1-30자), description(1-100자)이 필요합니다',
+      });
+    }
+    return this.brainstormService.mergeIdeas(teamId, user.sub, parsed.data);
   }
 
   /**
