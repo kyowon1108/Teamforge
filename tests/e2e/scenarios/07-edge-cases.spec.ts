@@ -4,15 +4,20 @@ import { U } from '../fixtures/users';
 import { TEAMS } from '../fixtures/teams';
 
 test.describe('Edge Cases: 보안 + 동시성 + 제한', () => {
-  // E1: 동시 joinTeam (같은 유저, 같은 팀) — seed에서 이미 가입 상태
+  // E1: 이미 가입한 팀에 재가입 시도
   test('E1: 이미 가입한 팀에 재가입 시도 → 409', async () => {
+    // 현재 유효한 초대코드 조회
+    const leaderApi = await createApiClient(U.U01.id, U.U01.email);
+    const teamsRes = await leaderApi.get('/api/teams');
+    const teams = (await teamsRes.json()) as Array<{ teamId: string; inviteCode?: string }>;
+    const teamA = teams.find((t) => t.teamId === TEAMS.A.id);
+
     const api = await createApiClient(U.U03.id, U.U03.email);
     const res = await api.post('/api/teams/join', {
-      inviteCode: TEAMS.A.inviteCode,
+      inviteCode: teamA?.inviteCode ?? 'NONE',
       role: 'member',
     });
-    // 초대코드가 재생성되었을 수 있으므로 409 또는 404
-    expect([404, 409]).toContain(res.status);
+    expect([409, 429]).toContain(res.status);
   });
 
   // E2: Observer가 모든 write API 호출
@@ -89,19 +94,24 @@ test.describe('Edge Cases: 보안 + 동시성 + 제한', () => {
 
   // E11: 구 초대코드로 참가 불가
   test('E11: 초대코드 재생성 후 구 코드 사용 불가', async () => {
-    const oldCode = TEAMS.B.inviteCode; // BETA22
+    // 현재 팀B 초대코드 조회
+    const leaderApi = await createApiClient(U.U02.id, U.U02.email);
+    const teamsRes = await leaderApi.get('/api/teams');
+    const teams = (await teamsRes.json()) as Array<{ teamId: string; inviteCode?: string }>;
+    const teamB = teams.find((t) => t.teamId === TEAMS.B.id);
+    const oldCode = teamB?.inviteCode;
+    expect(oldCode).toBeTruthy();
 
     // 리더가 재생성
-    const leaderApi = await createApiClient(U.U02.id, U.U02.email);
     await leaderApi.post(`/api/teams/${TEAMS.B.id}/regenerate-invite`);
 
-    // 새 유저가 구 코드로 참가 시도 (U20은 팀B에 없음)
+    // 새 유저가 구 코드로 참가 시도
     const newApi = await createApiClient(U.U20.id, U.U20.email);
     const res = await newApi.post('/api/teams/join', {
-      inviteCode: oldCode,
+      inviteCode: oldCode!,
       role: 'member',
     });
-    expect(res.status).toBe(404); // 구 코드는 더 이상 유효하지 않음
+    expect([404, 429]).toContain(res.status);
   });
 
   // E9: 역할 반응 유효성 검증

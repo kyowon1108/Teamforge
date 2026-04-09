@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 
-// CUID2: 소문자 + 숫자, 20~30자
-const TEAM_ID_RE = /^[a-z0-9]{20,30}$/;
+// UUID v4 또는 CUID2 허용
+const TEAM_ID_RE = /^[a-z0-9-]{20,36}$/;
 
 @Injectable()
 export class ParseTeamIdPipe implements PipeTransform<string, string> {
