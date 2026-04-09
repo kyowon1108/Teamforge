@@ -1,26 +1,26 @@
 # Runbook: topic-name
 
-## Purpose
+## 목적
 
-- What this runbook is for
+- 이 runbook의 목적을 적는다.
 
-## Preconditions
+## 사전 조건
 
-- [ ] Access confirmed
-- [ ] Backup or rollback plan confirmed
+- [ ] 접근 권한 확인
+- [ ] 백업 또는 롤백 계획 확인
 
-## Steps
+## 절차
 
-1. Step one
-2. Step two
-3. Verification
+1. 첫 번째 단계
+2. 두 번째 단계
+3. 검증
 
-## Rollback
+## 롤백
 
-1. Rollback step
-2. Verification step
+1. 롤백 단계
+2. 롤백 후 검증
 
-## Notes
+## 참고
 
-- Owner
-- Risk window
+- 담당자
+- 위험 시간대

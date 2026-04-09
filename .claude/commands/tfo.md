@@ -49,6 +49,7 @@ TeamForge 프로젝트의 모든 작업 진입점. Codex에 먼저 계획을 검
   ▼
 5. [문서화] tf-docs 호출
    - 진행 일지 업데이트, 결정 키 신규 등록 여부 판단
+   - 생성·수정 문서는 `docs/architecture/document-language-policy.md` 준수
   │
   ▼
 6. [커밋] tf-commit 호출
@@ -73,7 +74,7 @@ TeamForge 프로젝트의 모든 작업 진입점. Codex에 먼저 계획을 검
 2. **순서 강제** — DB → Backend → Frontend 순서 위반 금지
 3. **blocked 전파** — 어느 에이전트든 `blocked` 상태 반환 시 이후 단계 중단
 4. **도메인 침범 차단** — 각 에이전트는 자신의 owned path만 수정
-5. **문서화 필수** — 모든 작업 완료 후 tf-docs 호출 생략 불가
+5. **문서화 필수** — 모든 작업 완료 후 tf-docs 호출 생략 불가, 문서 언어 정책 준수
 
 ## 사용 예시
 

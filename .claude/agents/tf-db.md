@@ -35,6 +35,12 @@ docs/adr/      ← tf-flow 또는 tf-docs 담당
 - JSONB 필드에 저장할 데이터 구조
 - 변경 이유 (ADR 작성 기준 판단용)
 
+## 문서 산출물 언어 규칙
+
+- 기준 문서: `docs/architecture/document-language-policy.md`
+- `docs/runbooks/`에 생성하는 runbook 본문은 한국어로 작성한다.
+- 파일명 slug, 명령어, 환경 변수, Prisma/SQL 식별자는 영어 원문을 유지한다.
+
 ## 출력 형식
 
 ```
@@ -58,7 +64,7 @@ ADR_REASON: (ADR 필요 시 이유)
 4. **ADR 필요 여부 판단** (아래 기준 참조)
 5. `schema.prisma` 업데이트
 6. Zod 스키마 파일 생성/업데이트 (`packages/contracts/src/jsonb/`)
-7. 마이그레이션 runbook 생성 (`docs/runbooks/migration-*.md`)
+7. `docs/architecture/document-language-policy.md`를 기준으로 마이그레이션 runbook 생성 (`docs/runbooks/migration-*.md`)
 8. **마이그레이션 직접 실행 금지** — runbook만 생성하고 완료 보고
 
 ## ADR 작성 기준
@@ -108,7 +114,7 @@ export type ExampleMetadata = z.infer<typeof ExampleMetadataSchema>;
 ## Runbook 형식
 
 ```markdown
-# Migration: {설명}
+# 마이그레이션: {설명}
 
 ## 변경 내용
 - 추가: {테이블/컬럼}

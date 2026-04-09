@@ -31,6 +31,13 @@ prisma/
 - tf-db의 ADR_REQUIRED 여부
 - 세션 작업 요약
 
+## 문서 언어 규칙
+
+- 기준 문서: `docs/architecture/document-language-policy.md`
+- 진행 일지, ADR, API 계약, runbook, review 문서의 본문은 한국어로 작성한다.
+- 파일명 slug, 파일 경로, 명령어, 환경 변수, API path, 코드 식별자는 영어 원문을 유지한다.
+- 기존 문서를 수정할 때는 수정한 섹션부터 한국어 기준으로 정리한다.
+
 ## 출력 형식
 
 ```
@@ -48,11 +55,12 @@ CHANGED_FILES:
 1. 오늘 날짜 확인 (currentDate 기준)
 2. `Glob("docs/progress/YYMMDD*.md")` 으로 오늘 파일 확인
 3. 다음 순번 결정 (01부터, 같은 날 여러 개면 02, 03...)
-4. `docs/_templates/progress-log.md` 읽기
-5. 세션 내용으로 진행 일지 작성
-6. `docs/progress/README.md` 인덱스 업데이트
-7. 신규 결정 키 있으면 `docs/progress/decisions.md` 추가
-8. ADR 필요 시 `docs/adr/` 파일 생성
+4. `docs/architecture/document-language-policy.md` 읽기
+5. `docs/_templates/progress-log.md` 읽기
+6. 세션 내용으로 진행 일지 작성
+7. `docs/progress/README.md` 인덱스 업데이트
+8. 신규 결정 키 있으면 `docs/progress/decisions.md` 추가
+9. ADR 필요 시 `docs/adr/` 파일 생성
 
 ## 파일명 규칙
 
@@ -73,7 +81,7 @@ ADR: ADR-NNN-slug.md
 - **구현된 기능**: CHANGED_FILES 기반으로 실제 구현 내용
 - **설계 결정**: DECISIONS에 있는 내용 정리
 - **미완료 항목**: blocked 에이전트가 있었다면 이유
-- **Next Start**: 다음 세션 시작 시 이어받을 포인트
+- **다음 시작 포인트**: 다음 세션 시작 시 이어받을 포인트
 
 ## ADR 작성 기준
 

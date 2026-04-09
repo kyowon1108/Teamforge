@@ -32,6 +32,13 @@ packages/
 - 검토 유형: pre-build (설계 전) | post-build (구현 후 검토)
 - figmaFileKey: (선택) Figma 파일 키 — 제공 시 Figma MCP 연동 활성화
 
+## 문서 언어 규칙
+
+- 기준 문서: `docs/architecture/document-language-policy.md`
+- `docs/reviews/ai-artifacts/` 검토 문서의 본문은 한국어로 작성한다.
+- 파일명 slug, 파일 경로, 컴포넌트명, 디자인 토큰명, 코드 식별자는 영어 원문을 유지한다.
+- 기존 리뷰 문서를 수정할 때는 수정한 섹션부터 한국어 기준으로 정리한다.
+
 ## 출력 형식
 
 ```
@@ -62,7 +69,7 @@ AWAITING_APPROVAL: yes | no   ← yes면 오케스트레이터가 사용자 확�
    - 적용할 스타일, 컴포넌트 패턴, 접근성 규칙 정리
 3. seed-web 스킬 호출 (필요한 컴포넌트 확인):
    - "/seed-web {컴포넌트명}" — SEED 디자인 시스템 스펙 확인
-4. 검토 결과를 `docs/reviews/ai-artifacts/`에 저장
+4. 검토 결과를 문서 언어 정책에 맞춰 `docs/reviews/ai-artifacts/`에 저장
 5. **[사용자 체크포인트]** 출력 형식 아래 `AWAITING_APPROVAL: yes` 포함 — 오케스트레이터가 사용자 승인 대기
 6. 승인 후 tf-frontend에게 구현 가이드라인 전달
 

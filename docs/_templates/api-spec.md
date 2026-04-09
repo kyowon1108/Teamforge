@@ -1,35 +1,35 @@
 # API Module Name
 
-## Scope
+## 범위
 
-- What this module owns
+- 이 모듈이 담당하는 범위를 적는다.
 
-## Endpoints
+## 엔드포인트
 
 | Method | Path | Auth | Summary |
 | --- | --- | --- | --- |
-| GET | `/api/...` | member | Description |
+| GET | `/api/...` | member | 설명 |
 
-## Request Contract
-
-```json
-{}
-```
-
-## Response Contract
+## 요청 계약
 
 ```json
 {}
 ```
 
-## Error Cases
+## 응답 계약
 
-- `CODE_NAME`: when this happens
+```json
+{}
+```
 
-## Events
+## 에러 케이스
+
+- `CODE_NAME`: 어떤 상황에서 발생하는지 적는다
+
+## 이벤트
 
 - `team.updated`
 
-## Related Docs
+## 관련 문서
 
-- Link to product or ADR docs
+- 관련 product 또는 ADR 문서를 연결한다

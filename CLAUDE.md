@@ -363,6 +363,13 @@ scope 예시: `auth`, `survey`, `meeting`, `changes`, `ai/agent1`, `db/migration
 
 ## 문서 작성 가이드
 
+### 문서 언어 기본 규칙
+
+- 기준 문서: `docs/architecture/document-language-policy.md`
+- 내부 문서 본문 기본 언어는 한국어다.
+- 파일명 slug, 파일 경로, 명령어, 환경 변수, API path, 타입/모델/함수명은 영어 원문을 유지한다.
+- 기존 문서를 수정할 때는 수정한 섹션부터 한국어 기준으로 정리한다.
+
 ### 언제 무엇을 작성하는가
 
 | 상황 | 문서 유형 | 명령 |
@@ -377,4 +384,4 @@ scope 예시: `auth`, `survey`, `meeting`, `changes`, `ai/agent1`, `db/migration
 ### 진행 일지 파일명 규칙
 - 형식: `docs/progress/YYMMDD_NN-brief-english-desc.md`
 - 예: `260405_01-kakao-oauth-fix.md`, `260405_02-screen-flow-docs.md`
-- 세션 종료 시 항상 `Next Start` 섹션 작성
+- 세션 종료 시 항상 `다음 시작 포인트` 섹션 작성

@@ -1,20 +1,20 @@
 # Review Request: artifact-name
 
-## Artifact
+## 검토 대상
 
-- Path or artifact identifier
+- 경로 또는 아티팩트 식별자
 
-## Why Review Is Needed
+## 검토가 필요한 이유
 
-- Human checkpoint reason
+- 사람 승인 체크포인트가 필요한 이유
 
-## Review Checklist
+## 검토 체크리스트
 
-- [ ] Scope is correct
-- [ ] Sensitive data is not leaked
-- [ ] Approval intent is clear
-- [ ] Output is safe to publish or write back
+- [ ] 범위가 올바르다
+- [ ] 민감 정보가 노출되지 않았다
+- [ ] 승인 의도가 명확하다
+- [ ] 배포 또는 write-back 하기 전에 안전성이 확인됐다
 
-## Reviewer Notes
+## 검토자 메모
 
 - Pending
