@@ -335,22 +335,34 @@ export default function BrainstormClient({
   }, [teamId]);
 
   // -------------------------------------------------------------------------
+  // Shared header for all phases
+  // -------------------------------------------------------------------------
+
+  const phaseKey = phase === 'voting' || phase === 'confirmed' ? 'voting' : phase;
+
+  const header = (
+    <header className="mb-6">
+      <h1
+        className="text-2xl sm:text-3xl font-bold mb-6"
+        style={{ color: 'var(--tf-fg-default)' }}
+      >
+        브레인스토밍
+      </h1>
+
+      <PhaseProgressBar current={phaseKey as 'ideation' | 'sharing' | 'clustering' | 'voting'} />
+
+      {teamCapability && <TeamCapabilityBanner capability={teamCapability} />}
+    </header>
+  );
+
+  // -------------------------------------------------------------------------
   // Render: Ideation Stage
   // -------------------------------------------------------------------------
   if (phase === 'ideation') {
     return (
       <div className="min-h-screen" style={{ background: 'var(--tf-bg-layer-alt)' }}>
-        <main className="max-w-2xl mx-auto px-4 py-6">
-          <h1
-            className="text-2xl font-bold mb-4"
-            style={{ color: 'var(--tf-fg-default)' }}
-          >
-            브레인스토밍
-          </h1>
-
-          <PhaseProgressBar current="ideation" />
-
-          {teamCapability && <TeamCapabilityBanner capability={teamCapability} />}
+        <main className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
+          {header}
 
           <BrainstormTimer duration={420} />
 
@@ -415,15 +427,8 @@ export default function BrainstormClient({
   if (phase === 'sharing') {
     return (
       <div className="min-h-screen" style={{ background: 'var(--tf-bg-layer-alt)' }}>
-        <main className="max-w-2xl mx-auto px-4 py-6">
-          <h1
-            className="text-2xl font-bold mb-4"
-            style={{ color: 'var(--tf-fg-default)' }}
-          >
-            브레인스토밍
-          </h1>
-
-          <PhaseProgressBar current="sharing" />
+        <main className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
+          {header}
 
           <p className="text-sm mb-4" style={{ color: 'var(--tf-fg-muted)' }}>
             팀원들의 아이디어를 살펴보고 공감, 코멘트, 발전시키기를 해보세요.
@@ -500,15 +505,8 @@ export default function BrainstormClient({
   if (phase === 'clustering') {
     return (
       <div className="min-h-screen" style={{ background: 'var(--tf-bg-layer-alt)' }}>
-        <main className="max-w-2xl mx-auto px-4 py-6">
-          <h1
-            className="text-2xl font-bold mb-4"
-            style={{ color: 'var(--tf-fg-default)' }}
-          >
-            브레인스토밍
-          </h1>
-
-          <PhaseProgressBar current="clustering" />
+        <main className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
+          {header}
 
           <div
             className="flex items-center gap-3 mb-6 rounded-lg p-4"

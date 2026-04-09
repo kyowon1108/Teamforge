@@ -1,6 +1,6 @@
 'use client';
 
-import { Lightbulb, Share2, Cpu, Vote, CheckCircle2 } from 'lucide-react';
+import { Lightbulb, Share2, Cpu, Vote } from 'lucide-react';
 
 const PHASES = [
   { key: 'ideation', label: '아이디어 발상', Icon: Lightbulb },
@@ -25,82 +25,81 @@ interface PhaseProgressBarProps {
 export default function PhaseProgressBar({ current }: PhaseProgressBarProps) {
   const currentIndex = PHASE_ORDER[current];
 
+  // 7칸 그리드: col — line — col — line — col — line — col
+  // 칼럼 4개 동일 너비(1fr), 선 3개 동일 너비(1fr)
   return (
-    <div className="flex items-center justify-between gap-1 mb-6">
-      {PHASES.map((phase, i) => {
-        const isCompleted = i < currentIndex;
-        const isCurrent = i === currentIndex;
-        const Icon = phase.Icon;
+    <nav aria-label="브레인스토밍 단계" className="mb-6 max-w-lg mx-auto">
+      <div
+        className="grid items-start"
+        style={{
+          gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+        }}
+      >
+        {PHASES.map((phase, i) => {
+          const isCompleted = i < currentIndex;
+          const isCurrent = i === currentIndex;
+          const Icon = phase.Icon;
 
-        return (
-          <div key={phase.key} className="flex-1 flex flex-col items-center gap-1.5">
-            {/* Step indicator */}
-            <div className="flex items-center w-full">
-              {i > 0 && (
+          return (
+            <div key={phase.key} className="contents">
+              {/* 아이콘 + 라벨 칼럼 */}
+              <div className="flex flex-col items-center">
                 <div
-                  className="flex-1 h-0.5 -mr-1"
-                  style={{
-                    background: isCompleted || isCurrent
-                      ? 'var(--tf-bg-brand-solid)'
-                      : 'var(--tf-stroke-neutral)',
-                  }}
-                />
-              )}
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors"
-                style={{
-                  background: isCompleted
-                    ? 'var(--tf-bg-brand-solid)'
-                    : isCurrent
-                    ? 'color-mix(in srgb, var(--tf-bg-brand-solid) 15%, transparent)'
-                    : 'var(--tf-bg-layer-alt)',
-                  border: isCurrent
-                    ? '2px solid var(--tf-bg-brand-solid)'
-                    : isCompleted
-                    ? 'none'
-                    : '1px solid var(--tf-stroke-neutral)',
-                }}
-              >
-                {isCompleted ? (
-                  <CheckCircle2 size={16} style={{ color: 'white' }} />
-                ) : (
-                  <Icon
-                    size={14}
-                    style={{
-                      color: isCurrent
-                        ? 'var(--tf-bg-brand-solid)'
-                        : 'var(--tf-fg-muted)',
-                    }}
-                  />
-                )}
-              </div>
-              {i < PHASES.length - 1 && (
-                <div
-                  className="flex-1 h-0.5 -ml-1"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center"
                   style={{
                     background: isCompleted
                       ? 'var(--tf-bg-brand-solid)'
-                      : 'var(--tf-stroke-neutral)',
+                      : 'transparent',
+                    border: isCurrent
+                      ? '2px solid var(--tf-bg-brand-solid)'
+                      : isCompleted
+                        ? '2px solid var(--tf-bg-brand-solid)'
+                        : '1.5px solid var(--tf-stroke-neutral)',
                   }}
-                />
+                >
+                  <Icon
+                    size={18}
+                    strokeWidth={1.8}
+                    style={{
+                      color: isCompleted
+                        ? 'white'
+                        : isCurrent
+                          ? 'var(--tf-bg-brand-solid)'
+                          : 'var(--tf-fg-muted)',
+                    }}
+                  />
+                </div>
+                <span
+                  className="text-[11px] sm:text-sm font-medium text-center mt-1.5 whitespace-nowrap"
+                  style={{
+                    color: isCurrent
+                      ? 'var(--tf-bg-brand-solid)'
+                      : isCompleted
+                        ? 'var(--tf-fg-default)'
+                        : 'var(--tf-fg-muted)',
+                  }}
+                >
+                  {phase.label}
+                </span>
+              </div>
+
+              {/* 연결선 — 원 중심 높이(20px sm:24px)에 맞춤 */}
+              {i < PHASES.length - 1 && (
+                <div className="flex items-start pt-[19px] sm:pt-[23px]">
+                  <div
+                    className="w-full h-[2px]"
+                    style={{
+                      background: i < currentIndex
+                        ? 'var(--tf-bg-brand-solid)'
+                        : 'var(--tf-stroke-neutral)',
+                    }}
+                  />
+                </div>
               )}
             </div>
-            {/* Label */}
-            <span
-              className="text-xs font-medium text-center"
-              style={{
-                color: isCurrent
-                  ? 'var(--tf-bg-brand-solid)'
-                  : isCompleted
-                  ? 'var(--tf-fg-default)'
-                  : 'var(--tf-fg-muted)',
-              }}
-            >
-              {phase.label}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

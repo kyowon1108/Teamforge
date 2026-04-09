@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import PhaseProgressBar from '@/components/brainstorm/PhaseProgressBar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -927,14 +928,18 @@ export default function TopicDecisionClient({
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--tf-bg-layer-alt)' }}>
-      <main className="max-w-2xl mx-auto px-4 py-6 pb-36">
-        {/* Page title */}
-        <h1
-          className="text-2xl font-bold mb-4"
-          style={{ color: 'var(--tf-fg-default)' }}
-        >
-          킥오프 주제 결정
-        </h1>
+      <main className="max-w-2xl mx-auto px-4 py-6 sm:py-8 pb-36">
+        {/* Shared header */}
+        <header className="mb-6">
+          <h1
+            className="text-2xl sm:text-3xl font-bold mb-6"
+            style={{ color: 'var(--tf-fg-default)' }}
+          >
+            브레인스토밍
+          </h1>
+
+          <PhaseProgressBar current="voting" />
+        </header>
 
         {/* Role intent banner */}
         <RoleIntentBanner role={userRole} isLocked={isLocked} />
