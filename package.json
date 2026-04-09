@@ -8,10 +8,15 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:seed": "npx tsx tests/e2e/helpers/seed.ts",
+    "test:e2e": "npx playwright test --config tests/e2e/playwright.config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "jose": "^6.2.2",
     "prettier": "^3.6.0",
+    "tsx": "^4.21.0",
     "turbo": "^2.0.0",
     "typescript": "^5.7.0"
   }
