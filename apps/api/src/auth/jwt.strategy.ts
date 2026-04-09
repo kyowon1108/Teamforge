@@ -21,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: unknown): ExchangeTokenPayload {
+  async validate(payload: unknown): Promise<ExchangeTokenPayload> {
     const result = ExchangeTokenPayloadSchema.safeParse(payload);
     if (!result.success) {
       throw new UnauthorizedException('Invalid token payload');
@@ -34,11 +34,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token expiry exceeds maximum allowed (300s)');
     }
 
-    // jti 재사용 방지 (인메모리 — KF-005: Redis로 교체 예정)
-    if (this.jtiCache.isUsed(result.data.jti)) {
+    // jti 재사용 방지 (Redis 사용 시 분산 환경 지원, 없으면 인메모리 폴백)
+    if (await this.jtiCache.isUsed(result.data.jti)) {
       throw new UnauthorizedException('Token already used (jti replay detected)');
     }
-    this.jtiCache.markUsed(result.data.jti, result.data.exp);
+    await this.jtiCache.markUsed(result.data.jti, result.data.exp);
 
     return result.data;
   }

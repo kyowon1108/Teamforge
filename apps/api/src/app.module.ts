@@ -11,10 +11,12 @@ import { SurveyModule } from "./survey/survey.module";
 import { KickoffModule } from "./kickoff/kickoff.module";
 import { BrainstormModule } from "./brainstorm/brainstorm.module";
 import { GatewaysModule } from "./gateways/gateways.module";
+import { RedisModule } from "./redis/redis.module";
 
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
+    RedisModule,
     AuthModule,
     PrismaModule,
     UsersModule,
