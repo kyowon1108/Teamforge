@@ -34,8 +34,8 @@ export function useTeamSocket({ teamId, onEvent }: UseTeamSocketOptions) {
 
         if (cancelled) return;
 
-        // 2. 소켓 연결
-        const sock = getSocket(token);
+        // 2. 소켓 연결 (teamId별 인스턴스)
+        const sock = getSocket(token, teamId);
         socketRef.current = sock;
 
         sock.on('connect', () => {
@@ -71,8 +71,11 @@ export function useTeamSocket({ teamId, onEvent }: UseTeamSocketOptions) {
 
     return () => {
       cancelled = true;
-      socketRef.current?.emit('leave:team', teamId);
-      disconnectSocket();
+      if (socketRef.current) {
+        socketRef.current.emit('leave:team', teamId);
+      }
+      disconnectSocket(teamId);
+      socketRef.current = null;
     };
   }, [teamId]);
 

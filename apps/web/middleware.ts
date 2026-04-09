@@ -23,8 +23,20 @@ export default auth((req) => {
     'kickoff-topic-loading',
     'kickoff-topic-leader',
     'kickoff-topic-member',
+    'kickoff-topic-voting',
     'result',
     'kickoff-dashboard-complete',
+    'kickoff-dashboard-progress',
+    'brainstorm-stage1',
+    'brainstorm-stage2',
+    'brainstorm-stage3',
+    'dashboard-empty',
+    'dashboard-teams',
+    'survey',
+    'team-create',
+    'team-join',
+    'result-leader',
+    'result-member-confirmed',
   ];
   const isDevPreviewPublic =
     pathname === '/dev-preview' &&
