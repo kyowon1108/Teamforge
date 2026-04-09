@@ -374,3 +374,70 @@ This file keeps the currently effective working decisions in a compact format.
 **영향 범위:** `packages/contracts/src/brainstorm/idea-submit.schema.ts`, `apps/api/src/brainstorm/brainstorm.service.ts`, `apps/api/src/brainstorm/brainstorm.controller.ts`, `apps/web/components/brainstorm/MergeModal.tsx`, `apps/web/components/brainstorm/IdeaCard.tsx`, `apps/web/components/brainstorm/IdeaCardWall.tsx`
 
 **일지:** [260408_03](./260408_03-merge-socketio.md)
+
+## KF-036 — Team Context의 boolean 필드는 nullable로 둔다 (legacy 팀의 미입력 의미 보존)
+
+**결론:** Team 모델에 추가되는 Team Context boolean 필드 3종(`hasNonDeveloper`, `usesVibeCoding`, `hasSkillGap`)은 `Boolean?` (nullable)로 선언하며 default 값을 두지 않는다. 팀 생성 시 팀장이 명시적으로 true/false를 선택하지 않으면 `null`로 저장되며, 이는 legacy 팀(도입 이전 생성된 팀)의 미입력 상태와 동일하게 처리된다. Dashboard 배너와 AI 프롬프트 양쪽에서 null 값을 "정보 없음"으로 해석하고, "false 선택"과는 구분한다.
+
+**이유:** default false로 두면 "비개발자 없음"과 "응답 안 함"이 동일하게 취급되어 팀 컨텍스트의 해석 정밀도가 떨어진다. legacy 팀과의 호환도 default 값으로 흐릿해진다. nullable 유지 시 AI 프롬프트가 null 필드를 `<team_context>` 블록에서 생략하는 fallback을 안전하게 구현할 수 있고, Dashboard 배너도 null인 특성은 배지로 표시하지 않는 단순 규칙을 적용할 수 있다. Survey의 experienceTier와 교차검증할 때도 "팀장이 false를 선택한 것"과 "선택 자체가 없는 것"을 구분해야 향후 Screen 10 Contract Gate 분기 로직에서 의미 있는 신호를 잃지 않는다.
+
+**영향 범위:** `apps/api/prisma/schema.prisma` (Team 모델), `packages/contracts/src/team/team-context.ts`, `apps/api/src/kickoff/kickoff.service.ts` (배너 응답 직렬화), `apps/api/src/brainstorm/brainstorm.service.ts` (프롬프트 주입 시 null 생략), `apps/web/app/team/create/` (3-state radio 또는 체크박스 + "선택 안 함" 옵션), `apps/web/app/team/[teamId]/dashboard/` (null 배지 생략)
+
+**관련 문서:** `docs/architecture/team-context-vs-survey-boundary.md`, `docs/product/system-spec.md` 데이터 모델 보강 섹션, `docs/product/screen-flow.md` Screen 3a Team Create Flow Detail
+
+**ADR:** [ADR-006](../adr/ADR-006-team-context-domain.md)
+
+**일지:** [260409_01](./260409_01-team-context.md)
+
+## KF-037 — Team Context enum은 packages/contracts/src/team/team-context.ts 단일 소스로 둔다
+
+**결론:** `TeamType`, `ProjectDuration`, `CompletionTarget` enum은 `packages/contracts/src/team/team-context.ts`에 Zod로 단일 소스 선언한다. 백엔드(NestJS 서비스/컨트롤러), 프론트엔드(Server Action + 폼 옵션), Prisma(schema.prisma의 enum 정의와 값 일치) 모두 이 파일의 정의를 기준으로 삼는다. Prisma enum은 수동 복제를 허용하되 값이 불일치할 경우 CI가 실패하도록 검증 테스트를 추가한다.
+
+**이유:** enum 값이 복수 소스에 분산되면 필연적으로 drift가 발생한다. 특히 GPT-4o 프롬프트에 주입되는 값이 폼 옵션과 한 글자라도 다르면 legacy 팀과 신규 팀의 처리 경로가 조용히 달라진다. Zod 단일 소스로 두면 런타임 검증 + 타입 추론 + 프론트엔드 옵션 생성을 한 파일에서 처리할 수 있고, 향후 enum 값 추가 시 한 곳만 수정하면 된다. Prisma enum은 DB 스키마 요구사항으로 별도 존재하지만, 값 동기화는 CI 테스트로 강제한다.
+
+**영향 범위:** `packages/contracts/src/team/team-context.ts` (신규), `apps/api/prisma/schema.prisma`, `apps/api/src/teams/teams.service.ts`, `apps/api/src/teams/teams.controller.ts`, `apps/api/src/kickoff/kickoff.service.ts`, `apps/api/src/brainstorm/brainstorm.service.ts`, `apps/web/app/team/create/` (폼 옵션), `apps/web/app/team/[teamId]/dashboard/` (배너 라벨 매핑)
+
+**관련 문서:** `docs/architecture/team-context-vs-survey-boundary.md`
+
+**ADR:** [ADR-006](../adr/ADR-006-team-context-domain.md)
+
+**일지:** [260409_01](./260409_01-team-context.md)
+
+## KF-038 — Team Context는 brainstorm 클러스터링과 kickoff 주제 생성 두 곳 모두 GPT-4o 프롬프트에 주입한다
+
+**결론:** Team Context는 `apps/api/src/kickoff/kickoff.service.ts`의 주제 제안 생성(`GET /topic/suggestions`)과 `apps/api/src/brainstorm/brainstorm.service.ts`의 브레인스토밍 클러스터링(`POST /brainstorm/cluster`) **두 곳 모두**에서 프롬프트에 주입한다. 주입 위치는 `<team_context>` XML 블록이며, `<survey_data>` 블록 **앞에** 위치한다. legacy 팀은 `<team_context>` 블록을 생략하고 과거 동작으로 fallback한다.
+
+**이유:** 브레인스토밍 클러스터링 단계에서 이미 Team Context가 아이디어 묶음에 반영되어야, Stage 4 Dot voting 시점에 사용자에게 제시되는 클러스터가 팀 목표와 정합성을 갖는다. 클러스터링에만 주입하고 주제 생성(기존 topic suggestions 경로)에는 주입하지 않으면, 두 경로의 결과 품질이 어긋나 팀이 어느 경로로 들어왔는지에 따라 주제 품질이 달라진다. 반대로 주제 생성에만 주입하면 브레인스토밍 Stage 3 AI 정리가 Team Context를 모른 채 진행되어 팀 방향과 맞지 않는 클러스터가 생성된다. 양쪽 모두 주입이 필수다. XML 블록 순서를 `<team_context>` → `<survey_data>`로 고정하는 이유는 팀 단위 운영 맥락이 개인 설문 통계의 상위 제약으로 작용해야 하기 때문이며, 반대 순서는 앵커링 편향을 유발한다.
+
+**영향 범위:** `apps/api/src/kickoff/kickoff.service.ts`, `apps/api/src/brainstorm/brainstorm.service.ts`, `tooling/prompts/` (관련 프롬프트 파일), `packages/contracts/src/ai/topic-suggestions.schema.ts`, `docs/product/screen-flow.md` Screen 7a/7b 섹션, `docs/architecture/team-context-vs-survey-boundary.md`
+
+**관련 문서:** `docs/architecture/team-context-vs-survey-boundary.md`의 "GPT-4o 주제 생성 / 브레인스토밍 클러스터링 프롬프트" 시나리오
+
+**ADR:** [ADR-006](../adr/ADR-006-team-context-domain.md)
+
+**일지:** [260409_01](./260409_01-team-context.md)
+
+## KF-039 — Team Context의 Dashboard 배너는 /kickoff/status 응답을 확장한다 (별도 엔드포인트 X)
+
+**결론:** Screen 6 Team Dashboard 상단에 표시되는 Team Context 배너의 데이터 소스는 기존 `GET /api/teams/:teamId/kickoff/status` 응답을 확장해서 제공한다. 별도의 `GET /api/teams/:teamId/context` 같은 엔드포인트는 만들지 않는다. 응답에는 `teamContext` 필드를 추가하며, 필드 구조는 `packages/contracts/src/team/team-context.ts`의 Zod 스키마와 일치한다.
+
+**이유:** Screen 6 대시보드는 이미 `/kickoff/status` 호출 한 번으로 `teamInsight`, `phase`, `members` 같은 집계 데이터를 가져오고 있다. 배너 전용 엔드포인트를 추가하면 대시보드 진입 시 라운드트립이 늘어나고 로딩 순서가 복잡해진다. Team Context는 팀 생성 이후 거의 변하지 않는 정적 데이터이므로 별도 엔드포인트로 분리할 만한 캐싱 전략이나 권한 차이가 없다. `/kickoff/status`는 이미 팀 멤버십 검증을 통과한 요청이므로 Team Context 노출 권한과도 일치한다. 향후 팀 정보 수정 페이지가 생기면 그때 `PATCH /teams/:teamId/context` 같은 별도 엔드포인트를 추가할 수 있지만, **열람**은 `/kickoff/status`로 단일화한다.
+
+**영향 범위:** `apps/api/src/kickoff/kickoff.service.ts` (응답 직렬화), `apps/api/src/kickoff/kickoff.controller.ts` (타입), `packages/contracts/src/kickoff/` (status 응답 스키마), `apps/web/app/team/[teamId]/dashboard/` (배너 컴포넌트가 status 응답 소비), `docs/product/screen-flow.md` Screen 6 API dependencies
+
+**관련 문서:** `docs/architecture/team-context-vs-survey-boundary.md` Screen 6 대시보드 배너 섹션
+
+**일지:** [260409_01](./260409_01-team-context.md)
+
+## KF-040 — Team Context UI는 Lucide React 아이콘만 사용한다 (이모지 금지)
+
+**결론:** Team Context와 관련된 모든 UI(Screen 3a 팀 생성 폼의 섹션 헤더, Screen 6 Dashboard 배너의 특성 배지, Screen 7a 브레인스토밍 클러스터 뱃지 등)에서 Lucide React 아이콘만 사용한다. 이모지는 사용하지 않는다. enum 값별 아이콘 매핑은 프론트엔드 단일 매핑 파일(`apps/web/lib/team-context-icons.ts` 또는 동등 위치)에서 관리한다.
+
+**이유:** CLAUDE.md 디자인 시스템 규칙 "아이콘: Lucide React만. 이모지 사용 금지"를 Team Context 도입 시점에 명확히 재확인한다. 이모지는 플랫폼/폰트별 렌더링 차이가 크고, 스크린리더 접근성이 불안정하며, Figma 디자인과 실제 구현이 어긋나기 쉽다. Lucide React는 이미 프로젝트에 도입되어 있고 shadcn/ui 컴포넌트들과 톤이 일치한다. 새 기능 도입 시점이 규칙 drift를 막는 가장 효과적인 순간이므로 여기서 명시적으로 재선언한다.
+
+**영향 범위:** `apps/web/app/team/create/create-team-client.tsx` (폼 섹션 헤더 아이콘), `apps/web/app/team/[teamId]/dashboard/kickoff-dashboard-client.tsx` (배너 특성 배지 아이콘), `apps/web/lib/team-context-labels.ts` (enum → 라벨 + Lucide 아이콘 단일 매핑), `docs/product/screen-flow.md` Screen 3a / 6 UI 원칙 섹션, CLAUDE.md 디자인 시스템 규칙과 일치
+
+**관련 문서:** CLAUDE.md "디자인 시스템 규칙" 섹션, `docs/architecture/team-context-vs-survey-boundary.md`
+
+**일지:** [260409_01](./260409_01-team-context.md)
+

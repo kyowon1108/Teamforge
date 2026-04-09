@@ -46,3 +46,29 @@ Help students or project teams form a team, understand member strengths, align o
 ## Current Repo Reality
 
 This repository currently contains planning and collaboration scaffolding, not working app code. Treat every screen as `not started in repo` until code lands, even if prior-project documents describe a more advanced implementation state.
+
+---
+
+## 데이터 모델 보강 — Team Context (2026-04-09)
+
+Screen 3a(`POST /api/teams`)가 기존에는 팀 이름만 받아 생성했기 때문에, GPT-4o가 주제 제안과 브레인스토밍 클러스터링을 수행할 때 "이 팀이 어떤 상황에서 무엇을 만들려는지"를 모른 채 설문 데이터만으로 추론하는 문제가 있었다. 이를 해결하기 위해 Prisma `Team` 모델에 Team Context 필드 7개를 추가한다.
+
+| 필드 | Prisma 타입 | 값 / 제약 | 필수 | 의미 |
+|------|------------|-----------|------|------|
+| `teamType` | enum `TeamType` | `HACKATHON` / `CAPSTONE` / `SW_MAESTRO` / `BOOTCAMP` / `SIDE_PROJECT` / `STARTUP` | 필수 | 팀 운영 형태 |
+| `projectDuration` | enum `ProjectDuration` | `UNDER_1_DAY` / `ONE_TO_FOUR_WEEKS` / `ONE_TO_THREE_MONTHS` / `OVER_THREE_MONTHS` | 필수 | 프로젝트 기간 |
+| `completionTarget` | enum `CompletionTarget` | `DEMO` / `MVP` / `PRODUCTION` | 필수 | 목표 완성도 |
+| `hasNonDeveloper` | `Boolean?` | nullable, default 없음 | 선택 | 비개발자(PM/디자이너) 팀원 포함 여부 |
+| `usesVibeCoding` | `Boolean?` | nullable, default 없음 | 선택 | Cursor/Claude Code 등 바이브코딩 도구 활용 계획 |
+| `hasSkillGap` | `Boolean?` | nullable, default 없음 | 선택 | 팀원 간 개발 경험 편차가 큰가 |
+| `domainHints` | `String[]` (max 2) | `FINTECH` / `HEALTHCARE` / `EDUCATION` / `SOCIAL` / `AI_ML` / `INFRA_TOOLING` / `ECOMMERCE` / `PUBLIC` / `GAME` / `OTHER` | 선택 | 관심 도메인 힌트 (최대 2개) |
+
+운영 규칙:
+
+- **단일 enum 소스:** `packages/contracts/src/team/team-context.ts`에 Zod로 선언한다. 백엔드(NestJS/Prisma seed), 프론트엔드(폼 옵션), 계약(Server Actions) 모두 이 파일에서 import한다. Prisma 스키마의 enum 정의와 값이 일치하도록 단일 소스에서 재사용한다.
+- **Boolean nullable 정책:** `hasNonDeveloper`, `usesVibeCoding`, `hasSkillGap`는 `Boolean?`으로 선언하며 default 값을 두지 않는다. legacy 팀(도입 이전 생성된 팀)과 "선택 안 함"을 의미적으로 동일하게 취급하지 않기 위함이다. Dashboard 배너는 null 값을 배지에서 생략하는 방식으로 렌더링한다.
+- **입력 권한:** 팀 생성 시점에 팀장이 입력한다. 이후 수정은 향후 팀 정보 페이지에서만 허용(backlog). 팀원·옵저버는 열람만 가능하다.
+
+### Survey와 Team Context의 의미 경계
+
+Survey(`apps/api/src/survey/`, `SurveyAnswersSchema`)는 **개인 단위** 역량 데이터다. 각 팀원이 본인의 기술 스택, 협업 습관, AI 활용 프로필, 경험 계층(experienceTier), 시스템 블록 신뢰도 등을 직접 답한다. 반면 Team Context는 **팀 단위** 운영·목표 컨텍스트로, 팀장이 팀을 대표해 한 번 입력하고 모든 멤버에게 공통 적용된다. 의미가 부분적으로 겹치는 필드(`usesVibeCoding` ↔ Survey `aiProfile`, `hasSkillGap` ↔ Survey `experienceTier` 분포)는 **레벨이 다른 입력**이다. 개인 답변의 통계는 팀의 실제 역량 분포를 보여주고, Team Context는 팀이 스스로 선언하는 운영 방향을 보여준다. GPT-4o 프롬프트는 두 입력을 모두 받아야 "현실 역량"과 "운영 의도"를 교차 참고해 의미 있는 주제를 제안할 수 있다. 상세 분리 원칙은 `docs/architecture/team-context-vs-survey-boundary.md` 참조.

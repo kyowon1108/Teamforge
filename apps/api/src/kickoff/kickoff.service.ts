@@ -9,6 +9,7 @@ import { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import { TeamGateway } from '../gateways/team.gateway';
 import { TopicSuggestionsSchema, type TopicSuggestion, SurveyAnswersSchema, type SurveyAnswers } from '@teamforge/contracts';
+import { buildTeamContextXml, TEAM_CONTEXT_SYSTEM_RULES } from '../common/team-context.util';
 
 @Injectable()
 export class KickoffService implements OnApplicationBootstrap {
@@ -66,6 +67,15 @@ export class KickoffService implements OnApplicationBootstrap {
         data: { status: 'processing' },
       });
 
+      // 팀 컨텍스트 조회 (KF-038: 주제 생성에 주입)
+      const team = await this.prisma.team.findUnique({
+        where: { id: teamId },
+      });
+
+      if (!team) {
+        throw new Error(`Team not found: ${teamId}`);
+      }
+
       // 설문 응답 조회
       const responses = await this.prisma.surveyResponse.findMany({
         where: { teamId, submitted: true },
@@ -81,7 +91,10 @@ export class KickoffService implements OnApplicationBootstrap {
         answers: r.answers,
       }));
 
-      const teamProfileSummary = `<survey_data>${JSON.stringify(sanitizedAnswers)}</survey_data>`;
+      const escapeXml = (s: string): string =>
+        s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+      const teamProfileSummary = `<survey_data>${escapeXml(JSON.stringify(sanitizedAnswers))}</survey_data>`;
 
       // OpenAI GPT-4o 호출 (최대 3회 재시도)
       let parsed: ReturnType<typeof TopicSuggestionsSchema.safeParse> | null =
@@ -94,12 +107,20 @@ export class KickoffService implements OnApplicationBootstrap {
           messages: [
             {
               role: 'system',
-              content:
-                '당신은 개발팀 킥오프 코치입니다. 팀 프로필을 분석해 적합한 프로젝트 주제 3~5개를 제안합니다.\n반드시 JSON 형식으로만 응답하세요: { "topics": [{"title": string, "rationale": string, "tags": string[]}] }',
+              content: `당신은 개발팀 킥오프 코치입니다. 팀 컨텍스트와 팀원 설문 결과를 분석해 적합한 프로젝트 주제 3~5개를 제안합니다.
+
+${TEAM_CONTEXT_SYSTEM_RULES}
+
+반드시 JSON 형식으로만 응답하세요: { "topics": [{"title": string, "rationale": string, "tags": string[]}] }`,
             },
             {
               role: 'user',
-              content: `팀 구성원 ${n}명의 설문 결과:\n${teamProfileSummary}\n각 주제는 팀의 기술 스택과 경험을 고려해야 합니다.`,
+              content: `${buildTeamContextXml(team)}
+
+팀 구성원 ${n}명의 설문 결과:
+${teamProfileSummary}
+
+위 팀 컨텍스트와 팀원 역량을 종합해 프로젝트 주제 3~5개를 제안하세요. 각 주제는 팀의 기술 스택, 경험, 목표 완성도 수준을 모두 고려해야 합니다.`,
             },
           ],
         });
@@ -258,6 +279,20 @@ export class KickoffService implements OnApplicationBootstrap {
   async getKickoffStatus(teamId: string, userId: string) {
     await this.requireMembership(teamId, userId);
 
+    // KF-039: Dashboard 배너용 team context — /kickoff/status 응답 확장
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      select: {
+        teamType: true,
+        projectDuration: true,
+        completionTarget: true,
+        hasNonDeveloper: true,
+        usesVibeCoding: true,
+        hasSkillGap: true,
+        domainHints: true,
+      },
+    });
+
     const memberships = await this.prisma.teamMembership.findMany({
       where: { teamId },
       include: {
@@ -322,6 +357,7 @@ export class KickoffService implements OnApplicationBootstrap {
       members,
       myRole,
       teamInsight,
+      teamContext: team,
     };
   }
 

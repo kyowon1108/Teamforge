@@ -33,3 +33,4 @@
 | 2026-04-08 | `260408_01-current-screen-status-and-intent-summary.md` | progress 문서를 통합해 최신 screen 진행 상태와 각 screen의 의도를 한 문서로 정리 |
 | 2026-04-08 | `260408_02-screen7-brainstorm.md` | Screen 7 브레인스토밍 전체 스택 구현 (7a/7b 분리, DB 4모델, 8컴포넌트, dot voting, KF-031~033) |
 | 2026-04-08 | `260408_03-merge-socketio.md` | Multi-parent merge + Socket.io 실시간 동기화 도입 (ADR-005, KF-034~035) |
+| 2026-04-09 | `260409_01-team-context.md` | Team Context 도메인 도입 (7필드, nullable-by-design, contracts 단일 enum, 두 AI 프롬프트 주입, ADR-006, KF-036~040) |

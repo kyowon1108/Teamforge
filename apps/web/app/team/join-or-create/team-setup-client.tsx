@@ -53,7 +53,7 @@ function CreateTeamSection() {
 
     startTransition(async () => {
       try {
-        const result = await createTeamAction(teamName);
+        const result = await createTeamAction({ name: teamName });
         if (result.error) {
           setError(normalizeTeamError(result.error));
           return;

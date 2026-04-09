@@ -72,3 +72,104 @@ test.describe('Screen 1+3: 인증 + 팀 생성/참가', () => {
     expect(res.status).toBe(403);
   });
 });
+
+test.describe('Team Context (KF-036~KF-040)', () => {
+  test('컨텍스트 없이 생성해도 200, kickoff/status에서 teamContext 모두 null', async () => {
+    const api = await createApiClient(U.U20.id, U.U20.email);
+    const res = await api.post('/api/teams', { name: 'NoCtx' });
+    if (res.status === 403) return; // TEAM_LIMIT 가능
+    expect(res.status).toBe(201);
+    const { teamId } = (await res.json()) as { teamId: string };
+
+    const statusRes = await api.get(`/api/teams/${teamId}/kickoff/status`);
+    expect(statusRes.status).toBe(200);
+    const data = (await statusRes.json()) as { teamContext: Record<string, unknown> | null };
+    expect(data.teamContext).not.toBeNull();
+    expect(data.teamContext!.teamType).toBeNull();
+    expect(data.teamContext!.projectDuration).toBeNull();
+    expect(data.teamContext!.completionTarget).toBeNull();
+    expect(data.teamContext!.domainHints).toEqual([]);
+  });
+
+  test('컨텍스트 포함 생성 후 조회 시 7개 필드 그대로 반환', async () => {
+    const api = await createApiClient(U.U20.id, U.U20.email);
+    const payload = {
+      name: 'CtxFull',
+      teamType: 'SW_MAESTRO',
+      projectDuration: 'ONE_TO_THREE_MONTHS',
+      completionTarget: 'MVP',
+      hasNonDeveloper: true,
+      usesVibeCoding: true,
+      hasSkillGap: false,
+      domainHints: ['AI_ML', 'EDUCATION'],
+    };
+    const res = await api.post('/api/teams', payload);
+    if (res.status === 403) return; // TEAM_LIMIT 가능
+    expect(res.status).toBe(201);
+    const { teamId } = (await res.json()) as { teamId: string };
+
+    const statusRes = await api.get(`/api/teams/${teamId}/kickoff/status`);
+    expect(statusRes.status).toBe(200);
+    const data = (await statusRes.json()) as {
+      teamContext: {
+        teamType: string;
+        projectDuration: string;
+        completionTarget: string;
+        hasNonDeveloper: boolean;
+        usesVibeCoding: boolean;
+        hasSkillGap: boolean;
+        domainHints: string[];
+      };
+    };
+    expect(data.teamContext.teamType).toBe('SW_MAESTRO');
+    expect(data.teamContext.projectDuration).toBe('ONE_TO_THREE_MONTHS');
+    expect(data.teamContext.completionTarget).toBe('MVP');
+    expect(data.teamContext.hasNonDeveloper).toBe(true);
+    expect(data.teamContext.usesVibeCoding).toBe(true);
+    expect(data.teamContext.hasSkillGap).toBe(false);
+    expect(data.teamContext.domainHints).toEqual(['AI_ML', 'EDUCATION']);
+  });
+
+  test('domainHints 3개 이상 → 422', async () => {
+    const api = await createApiClient(U.U20.id, U.U20.email);
+    const res = await api.post('/api/teams', {
+      name: 'BadHints',
+      domainHints: ['AI_ML', 'EDUCATION', 'FINTECH'],
+    });
+    expect([422, 403]).toContain(res.status);
+  });
+
+  test('잘못된 teamType enum → 422', async () => {
+    const api = await createApiClient(U.U20.id, U.U20.email);
+    const res = await api.post('/api/teams', {
+      name: 'BadEnum',
+      teamType: 'INVALID_VALUE',
+    });
+    expect([422, 403]).toContain(res.status);
+  });
+
+  test('seed 팀 A는 HACKATHON / DEMO / vibe true', async () => {
+    const api = await createApiClient(U.U01.id, U.U01.email);
+    const res = await api.get(`/api/teams/${TEAMS.A.id}/kickoff/status`);
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      teamContext: { teamType: string; completionTarget: string; usesVibeCoding: boolean; domainHints: string[] };
+    };
+    expect(data.teamContext.teamType).toBe('HACKATHON');
+    expect(data.teamContext.completionTarget).toBe('DEMO');
+    expect(data.teamContext.usesVibeCoding).toBe(true);
+    expect(data.teamContext.domainHints).toEqual(expect.arrayContaining(['SOCIAL', 'AI_ML']));
+  });
+
+  test('seed 팀 E는 컨텍스트 모두 null (legacy 시뮬레이션)', async () => {
+    // U13은 팀 E 멤버 (U19는 다른 테스트에서 탈퇴 가능성 있어서 U13 사용)
+    const api = await createApiClient(U.U13.id, U.U13.email);
+    const res = await api.get(`/api/teams/${TEAMS.E.id}/kickoff/status`);
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      teamContext: { teamType: string | null; domainHints: string[] };
+    };
+    expect(data.teamContext.teamType).toBeNull();
+    expect(data.teamContext.domainHints).toEqual([]);
+  });
+});

@@ -1,14 +1,19 @@
 'use server';
 import { auth } from '@/lib/auth';
 import { apiFetch } from '@/lib/api-client';
+import type { TeamContext } from '@teamforge/contracts';
 
-export async function createTeamAction(name: string) {
+export interface CreateTeamPayload extends TeamContext {
+  name: string;
+}
+
+export async function createTeamAction(payload: CreateTeamPayload) {
   const session = await auth();
   if (!session) return { error: '로그인이 필요합니다.', teamId: null, inviteCode: null };
 
   const res = await apiFetch('/api/teams', {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {

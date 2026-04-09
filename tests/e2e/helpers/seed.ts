@@ -34,13 +34,20 @@ async function main() {
   }
   console.log(`  ✓ ${USERS.length} users created`);
 
-  // 3. Create 5 teams + memberships
+  // 3. Create 5 teams + memberships (with Team Context — KF-036~KF-040)
   for (const [key, team] of Object.entries(TEAMS)) {
     await prisma.team.create({
       data: {
         id: team.id,
         name: team.name,
         inviteCode: team.inviteCode,
+        teamType: team.context.teamType,
+        projectDuration: team.context.projectDuration,
+        completionTarget: team.context.completionTarget,
+        hasNonDeveloper: team.context.hasNonDeveloper,
+        usesVibeCoding: team.context.usesVibeCoding,
+        hasSkillGap: team.context.hasSkillGap,
+        domainHints: team.context.domainHints as string[],
       },
     });
 

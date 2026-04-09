@@ -364,6 +364,7 @@ export default function DevPreviewPage({
             ],
             myRole: 'leader',
             teamInsight: null,
+            teamContext: null,
           }}
         />
       </div>
@@ -403,6 +404,15 @@ export default function DevPreviewPage({
                 '배포/인프라, 테스트/QA 영역에 담당자가 없습니다',
                 '4개 블록에서 AI 지원 계획이 필요합니다',
               ],
+            },
+            teamContext: {
+              teamType: 'HACKATHON',
+              projectDuration: 'ONE_TO_THREE_MONTHS',
+              completionTarget: 'MVP',
+              hasNonDeveloper: false,
+              usesVibeCoding: true,
+              hasSkillGap: false,
+              domainHints: ['AI_ML', 'SOCIAL'],
             },
           }}
         />

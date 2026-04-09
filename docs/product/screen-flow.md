@@ -159,25 +159,68 @@ The old pattern of redirecting to `/role-select` after OAuth is removed. Role as
 
 ## Team Create Flow Detail
 
+> 2026-04-09 업데이트: Team Context 필드 7개 도입. 팀 이름 단독 입력 구조에서 **6개 섹션 폼**으로 확장한다.
+> 배경: `/api/teams` 생성 시점에 팀의 운영 맥락이 없으면 GPT-4o가 주제/클러스터링을 제안할 때 설문 데이터만으로 추론해야 하고, 팀 단위 의도와 개인 설문이 분리되지 않는다. `docs/architecture/team-context-vs-survey-boundary.md` 참조.
+
 ```
 /dashboard → "새 팀 만들기" button
   -> /team/create
-     -> user enters team name (2–50 chars)
-     -> createTeamAction() called (Server Action)
-        -> API: POST /teams
+     -> [섹션 1] 팀 이름 입력 (teamName, 2–50자)                      ← 필수
+     -> [섹션 2] 팀 운영 형태 선택 (teamType)                          ← 필수
+     -> [섹션 3] 프로젝트 기간 선택 (projectDuration)                  ← 필수
+     -> [섹션 4] 목표 완성도 선택 (completionTarget)                   ← 필수
+     -> [섹션 5] 팀 구성 특성 (3개 boolean, nullable)                  ← 선택
+          - hasNonDeveloper (비개발자 포함 여부)
+          - usesVibeCoding (바이브코딩 도구 활용 계획)
+          - hasSkillGap (팀원 간 개발 경험 편차 큼)
+     -> [섹션 6] 관심 도메인 힌트 (domainHints, 최대 2개)              ← 선택
+     -> createTeamAction(payload) called (Server Action)
+        -> API: POST /teams  (body에 Team Context 7개 필드 포함)
         -> creator assigned leader role automatically
         -> invite code generated
      -> success: invite code shown with copy button
      -> "팀 페이지로 이동" → /team/[teamId]
 
+권한:
+  - 팀 생성 시점에만 팀장이 입력한다 (팀장 단독 입력).
+  - 입력 후 수정은 향후 팀 정보 페이지(backlog)에서만 허용한다.
+  - 팀원/옵저버는 Screen 6 배너를 통한 read-only 열람만 가능하다.
+
+Team Context 필드 스키마 소스:
+  - 단일 소스: `packages/contracts/src/team/team-context.ts` (Zod)
+  - 백엔드/프론트엔드/Prisma 모두 이 파일에서 enum을 import (KF 신규)
+
+Boolean 정책:
+  - hasNonDeveloper, usesVibeCoding, hasSkillGap 는 nullable, default 없음.
+  - legacy 팀(도입 전 생성된 팀)과 "선택 안 함"을 의미적으로 구분하기 위해 nullable을 채택 (KF 신규).
+
 Error states:
-  - team name < 2 or > 50 chars: inline validation (client-side)
+  - teamName < 2 or > 50 chars: inline validation (client-side)
+  - 필수 enum 미선택 (teamType / projectDuration / completionTarget): 제출 버튼 비활성화
+  - domainHints 3개 이상 선택 시도: 3번째 선택 차단 + 토스트 "최대 2개까지 선택할 수 있어요"
   - API error: inline error message
   - network error: "네트워크 오류가 발생했습니다. 다시 시도해 주세요."
+
+UI 원칙:
+  - 모바일 퍼스트. 6개 섹션을 세로 스크롤 단일 폼으로 배치.
+  - 섹션 헤더는 Lucide React 아이콘만 사용 (이모지 금지 — CLAUDE.md 규칙).
+  - enum 선택은 icon card 2열 그리드 패턴 (KF-028 Survey 카드 UI 표준과 동일 톤).
 
 Back navigation:
   - "대시보드로 돌아가기" → /dashboard
 ```
+
+### Team Context 필드 정의
+
+| 필드 | 타입 | 값 | 필수 | 의미 |
+|------|------|-----|------|------|
+| `teamType` | enum | `HACKATHON` / `CAPSTONE` / `SW_MAESTRO` / `BOOTCAMP` / `SIDE_PROJECT` / `STARTUP` | 필수 | 팀이 어떤 제도·형태로 운영되는가 |
+| `projectDuration` | enum | `UNDER_1_DAY` / `ONE_TO_FOUR_WEEKS` / `ONE_TO_THREE_MONTHS` / `OVER_THREE_MONTHS` | 필수 | 프로젝트 총 기간 |
+| `completionTarget` | enum | `DEMO` / `MVP` / `PRODUCTION` | 필수 | 목표하는 완성도 수준 |
+| `hasNonDeveloper` | `boolean \| null` | true / false / null | 선택 | PM·디자이너 등 비개발자 팀원 포함 여부 |
+| `usesVibeCoding` | `boolean \| null` | true / false / null | 선택 | Cursor·Claude Code 등 바이브코딩 도구 활용 계획 |
+| `hasSkillGap` | `boolean \| null` | true / false / null | 선택 | 팀원 간 개발 경험 편차가 큰가 |
+| `domainHints` | `string[]` (max 2) | `FINTECH` / `HEALTHCARE` / `EDUCATION` / `SOCIAL` / `AI_ML` / `INFRA_TOOLING` / `ECOMMERCE` / `PUBLIC` / `GAME` / `OTHER` | 선택 | 관심 도메인 힌트 (중복 허용하지 않음) |
 
 ---
 
@@ -357,6 +400,13 @@ Scoring rules:
 
 **Core UI:**
 - Team name header + invite code copy button
+- **Team Context 배너 (상단, 2026-04-09 신규):**
+  - 팀장이 Screen 3a에서 입력한 운영 컨텍스트를 한 줄 요약 카드로 표시
+  - 예: `해커톤 · 1–4주 · MVP 목표 · 핀테크 도메인` + 하위 특성 배지 (비개발자 포함 / 바이브코딩 / 스킬 편차)
+  - nullable boolean 필드는 배지에서 생략 (legacy 팀 또는 미입력과 "false 선택"을 시각적으로 동일하게 처리하지 않기 위함)
+  - 아이콘은 Lucide React만 사용
+  - 데이터 소스: `/kickoff/status` 응답의 `teamContext` 필드 (별도 엔드포인트 신설하지 않음)
+  - 역할별 동작: leader/member/observer 모두 read-only 열람. 수정 액션 없음.
 - Member list with per-member survey status badge:
   - "제출 완료" (green) — submitted
   - "작성 중" (yellow) — draft saved, not submitted
@@ -386,7 +436,9 @@ Scoring rules:
 
 **API dependencies:**
 - `GET /api/teams/:teamId/members` — member list with survey status
-- `GET /api/teams/:teamId/kickoff/status` — 응답에 `teamInsight` 필드 포함 (P0-B 완료): avgAxisScores, topAxes, bottomAxis, roleDistribution
+- `GET /api/teams/:teamId/kickoff/status` — 응답에 다음 필드 포함:
+  - `teamInsight` (P0-B 완료): avgAxisScores, topAxes, bottomAxis, roleDistribution
+  - `teamContext` (2026-04-09 신규): teamType, projectDuration, completionTarget, hasNonDeveloper, usesVibeCoding, hasSkillGap, domainHints. Team Context 배너 렌더링 소스.
 - `GET /api/teams/:teamId/kickoff/phase` — current kickoff phase
 - Socket.io room: `team:{teamId}`, event: `survey:submitted`
 
@@ -423,6 +475,28 @@ Scoring rules:
 - **Stage 1 -- Ideation (개별 발산):** 7분 가이드 타이머, 본인 아이디어만 보임, 팀 역량 요약 사이드바 표시 (AI 주제 제안 없음 -- 앵커링 방지)
 - **Stage 2 -- Sharing + Build-on:** 전체 아이디어 실명 공개, 공감(하트) 토글, Build-on 작성 (single-parent, 깊이 1단계, KF-032)
 - **Stage 3 -- AI Clustering:** GPT-4o가 아이디어를 3~5개 주제 클러스터로 정리. 202/200 polling 패턴 (KF-020)
+
+**AI 프롬프트 주입 구조 (Stage 3 클러스터링, 2026-04-09 신규):**
+
+`brainstorm.service.ts`에서 GPT-4o 호출 시 프롬프트는 다음 순서로 구성된다.
+
+```
+<team_context>
+  teamType, projectDuration, completionTarget,
+  hasNonDeveloper, usesVibeCoding, hasSkillGap,
+  domainHints
+</team_context>
+<survey_data>
+  팀원별 SurveyResponse.answers 집계 (6섹션)
+</survey_data>
+<ideas>
+  Stage 1~2에서 수집된 아이디어 원문 + build-on + merge 관계
+</ideas>
+```
+
+- `<team_context>` 블록은 항상 `<survey_data>` **앞에** 위치한다. 팀 단위 운영 맥락이 개인 단위 설문보다 상위 제약으로 작용해야 하기 때문.
+- XML 경계 분리는 prompt injection 방어 규칙(CLAUDE.md)에 따른 필수 구조다.
+- Team Context가 비어있는 legacy 팀은 `<team_context>` 블록을 생략하고 과거 동작으로 fallback.
 
 **실시간 이벤트:**
 - Socket.io 미도입 (KF-022). Stage 2 공감/Build-on 갱신은 10초 폴링.
@@ -469,7 +543,7 @@ Scoring rules:
 - observer: 읽기 전용 접근 허용
 
 **핵심 UI (Stage 4 -- Dot Voting + 확정):**
-- AI가 정리한 3~5개 클러스터가 투표 카드로 표시
+- AI가 정리한 3~5개 클러스터가 투표 카드로 표시 (클러스터 생성 시 이미 Team Context가 프롬프트에 주입됨 — 7a 참조)
 - Dot voting: 인당 2표, 같은 클러스터 중복 투표 허용 (KF-033)
 - 투표 현황 10초 폴링 갱신
 - leader: "이 주제로 확정" 버튼 (투표 결과 참고, 강제 아님)
@@ -914,9 +988,12 @@ Screen 7~8a의 AI 호출은 모두 "사용자가 화면에 진입할 때 최초 
 
 | 화면 | 트리거 | 입력 컨텍스트 |
 |------|--------|-------------|
-| Screen 7 | `GET /topic/suggestions` 최초 요청 시 | 팀 전체 SurveyResponse answers (요약) |
+| Screen 7 | `GET /topic/suggestions` 최초 요청 시 | **Team Context (2026-04-09 추가)** + 팀 전체 SurveyResponse answers (요약) |
+| Screen 7a (brainstorm) | `POST /brainstorm/cluster` 최초 요청 시 | **Team Context (2026-04-09 추가)** + Stage 1~2 아이디어 원문 + build-on/merge 관계 + 팀 SurveyResponse 요약 |
 | Screen 8a | `GET /structure/suggestions` 최초 요청 시 | confirmedTopic + 팀 tech profile (s2 answers 집계) |
 | Screen 8b | `GET /stack/options` | 8a acceptedBlocks + 팀 tech preference (s2 집계) |
+
+> Team Context 주입 범위: `kickoff.service.ts`의 주제 제안 생성과 `brainstorm.service.ts`의 클러스터링 **두 곳 모두**에서 `<team_context>` XML 블록을 `<survey_data>` 앞에 주입한다. 팀 단위 운영 맥락(Team)과 개인 단위 역량(Survey)은 레벨이 다른 입력이므로 둘 다 필요하다. 상세 설계: `docs/architecture/team-context-vs-survey-boundary.md`.
 
 Screen 8b는 AI 신규 생성이 아닌 acceptedBlocks 기반 옵션 목록 조회다. Claude API 호출 없이 사전 정의된 tech 옵션 매핑 + 설문 선호도 집계로 처리한다.
 

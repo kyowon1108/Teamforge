@@ -4,6 +4,11 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Check, Clock, Minus, Users, ChevronRight, TrendingUp, Trophy, AlertTriangle, Bot } from 'lucide-react';
 import type { KickoffStatusResponse, KickoffMember, TeamInsight } from './page';
+import {
+  TEAM_TYPE_SHORT,
+  DURATION_SHORT,
+  TARGET_SHORT,
+} from '@/lib/team-context-labels';
 
 interface Props {
   teamId: string;
@@ -361,9 +366,60 @@ function TeamInsightPanel({ insight }: { insight: TeamInsight }) {
   );
 }
 
+function TeamContextBanner({
+  ctx,
+}: {
+  ctx: NonNullable<KickoffStatusResponse['teamContext']>;
+}) {
+  const hasAny = ctx.teamType || ctx.projectDuration || ctx.completionTarget;
+  if (!hasAny) return null;
+
+  const TypeIcon = ctx.teamType ? TEAM_TYPE_SHORT[ctx.teamType].Icon : null;
+  const typeLabel = ctx.teamType ? TEAM_TYPE_SHORT[ctx.teamType].label : null;
+
+  return (
+    <div
+      className="rounded-lg px-4 py-3 flex flex-wrap items-center gap-3"
+      style={{
+        background: 'color-mix(in srgb, var(--tf-bg-brand-solid) 6%, var(--tf-surface-card))',
+        border: '1px solid color-mix(in srgb, var(--tf-bg-brand-solid) 18%, transparent)',
+      }}
+    >
+      {typeLabel && TypeIcon && (
+        <span
+          className="flex items-center gap-1.5 text-sm font-semibold"
+          style={{ color: 'var(--tf-fg-default)' }}
+        >
+          <TypeIcon className="w-4 h-4" /> {typeLabel}
+        </span>
+      )}
+      {ctx.projectDuration && (
+        <>
+          <span className="text-xs" style={{ color: 'var(--tf-fg-muted)' }}>
+            ·
+          </span>
+          <span className="text-sm" style={{ color: 'var(--tf-fg-default)' }}>
+            {DURATION_SHORT[ctx.projectDuration]}
+          </span>
+        </>
+      )}
+      {ctx.completionTarget && (
+        <>
+          <span className="text-xs" style={{ color: 'var(--tf-fg-muted)' }}>
+            ·
+          </span>
+          <span className="text-sm" style={{ color: 'var(--tf-fg-default)' }}>
+            {TARGET_SHORT[ctx.completionTarget]}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function KickoffDashboardClient({ teamId, data }: Props) {
   const router = useRouter();
-  const { phase, surveyStats, members, myRole, teamInsight } = data;
+  const { phase, surveyStats, members, myRole, teamInsight, teamContext } = data;
   const { total, submitted, canProceed } = surveyStats;
 
   const activeMembers = members.filter((m) => m.role !== 'observer');
@@ -383,6 +439,9 @@ export default function KickoffDashboardClient({ teamId, data }: Props) {
       style={{ background: 'var(--tf-bg-layer-alt)' }}
     >
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+
+        {/* 0. 팀 컨텍스트 배너 (teamContext가 있을 때만) */}
+        {teamContext && <TeamContextBanner ctx={teamContext} />}
 
         {/* 1. 팀 상태 헤더 */}
         <div className="flex items-center justify-between">

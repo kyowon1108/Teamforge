@@ -51,6 +51,13 @@ export class TeamsService {
       data: {
         name: dto.name,
         inviteCode,
+        teamType: dto.teamType ?? null,
+        projectDuration: dto.projectDuration ?? null,
+        completionTarget: dto.completionTarget ?? null,
+        hasNonDeveloper: dto.hasNonDeveloper ?? null,
+        usesVibeCoding: dto.usesVibeCoding ?? null,
+        hasSkillGap: dto.hasSkillGap ?? null,
+        domainHints: dto.domainHints ?? [],
         memberships: {
           create: {
             userId,

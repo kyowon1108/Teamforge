@@ -17,6 +17,7 @@ import {
   type MergeIdeasBody,
   type TopicSuggestion,
 } from '@teamforge/contracts';
+import { buildTeamContextXml, TEAM_CONTEXT_SYSTEM_RULES } from '../common/team-context.util';
 
 // Phase transition map
 const PHASE_ORDER = ['ideation', 'sharing', 'clustering', 'voting', 'confirmed'] as const;
@@ -534,6 +535,12 @@ export class BrainstormService {
         select: { userId: true, answers: true },
       });
 
+      // Fetch team context (KF-038: 클러스터링에 주입)
+      const team = await this.prisma.team.findUnique({
+        where: { id: teamId },
+      });
+      if (!team) throw new Error(`Team not found: ${teamId}`);
+
       const sanitizedAnswers = responses.map((r) => ({
         userId: r.userId,
         answers: r.answers,
@@ -575,6 +582,9 @@ export class BrainstormService {
             {
               role: 'system',
               content: `당신은 개발팀 킥오프 코치입니다. 브레인스토밍에서 나온 아이디어들을 분석해 3~5개 프로젝트 주제로 클러스터링합니다.
+
+${TEAM_CONTEXT_SYSTEM_RULES}
+
 반드시 JSON 형식으로만 응답하세요:
 {
   "topics": [
@@ -590,7 +600,15 @@ export class BrainstormService {
             },
             {
               role: 'user',
-              content: `팀 설문 결과:\n${teamProfileSummary}\n\n브레인스토밍 아이디어 목록:\n${brainstormBlock}\n\n위 아이디어들을 팀의 기술 스택과 경험을 고려해 3~5개 주제로 클러스터링하세요. 각 주제에 포함된 원본 아이디어 ID를 sourceIdeaIds로 반환하세요.`,
+              content: `${buildTeamContextXml(team)}
+
+팀 설문 결과:
+${teamProfileSummary}
+
+브레인스토밍 아이디어 목록:
+${brainstormBlock}
+
+위 아이디어들을 팀의 컨텍스트, 기술 스택과 경험을 고려해 3~5개 주제로 클러스터링하세요. 각 주제에 포함된 원본 아이디어 ID를 sourceIdeaIds로 반환하세요.`,
             },
           ],
         });

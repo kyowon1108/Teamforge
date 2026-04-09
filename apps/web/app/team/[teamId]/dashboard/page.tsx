@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import type { TeamContext } from '@teamforge/contracts';
 import { auth } from '@/lib/auth';
 import { apiFetch } from '@/lib/api-client';
 import KickoffDashboardClient from './kickoff-dashboard-client';
@@ -40,6 +41,7 @@ export interface KickoffStatusResponse {
   members: KickoffMember[];
   myRole: 'leader' | 'member' | 'observer';
   teamInsight: TeamInsight | null;
+  teamContext: TeamContext | null;
 }
 
 interface PageProps {

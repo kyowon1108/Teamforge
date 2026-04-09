@@ -29,6 +29,28 @@ enum BrainstormPhase {
   confirmed
 }
 
+enum TeamType {
+  HACKATHON
+  CAPSTONE
+  SW_MAESTRO
+  BOOTCAMP
+  SIDE_PROJECT
+  STARTUP
+}
+
+enum ProjectDuration {
+  UNDER_1_DAY
+  ONE_TO_FOUR_WEEKS
+  ONE_TO_THREE_MONTHS
+  OVER_THREE_MONTHS
+}
+
+enum CompletionTarget {
+  DEMO
+  MVP
+  PRODUCTION
+}
+
 model User {
   id              String           @id @default(uuid())
   email           String           @unique
@@ -80,18 +102,26 @@ model VerificationToken {
 }
 
 model Team {
-  id               String           @id @default(uuid())
-  name             String
-  inviteCode       String           @unique
-  description      String?
-  memberships      TeamMembership[]
-  surveyResponses  SurveyResponse[]
-  kickoffTopicJob  KickoffTopicJob?
-  kickoffTopics    KickoffTopic[]
-  kickoffReactions    KickoffReaction[]
-  brainstormSession   BrainstormSession?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  id                String             @id @default(uuid())
+  name              String
+  inviteCode        String             @unique
+  description       String?
+  memberships       TeamMembership[]
+  surveyResponses   SurveyResponse[]
+  kickoffTopicJob   KickoffTopicJob?
+  kickoffTopics     KickoffTopic[]
+  kickoffReactions  KickoffReaction[]
+  brainstormSession BrainstormSession?
+  createdAt         DateTime           @default(now())
+  // ── Team Context (KF-036~KF-040) ──
+  teamType          TeamType?
+  projectDuration   ProjectDuration?
+  completionTarget  CompletionTarget?
+  hasNonDeveloper   Boolean?
+  usesVibeCoding    Boolean?
+  hasSkillGap       Boolean?
+  domainHints       String[]           @default([])
+  updatedAt         DateTime           @updatedAt
 }
 
 model TeamMembership {
@@ -99,9 +129,9 @@ model TeamMembership {
   teamId        String
   userId        String
   role          TeamRole
-  confirmedRole String?   // '프론트엔드' | '백엔드' | '풀스택' | 'PM/기획' | 'AI/데이터' | 'DevOps' | 'QA/테스트' | '디자인' | '기타'
+  confirmedRole String? // '프론트엔드' | '백엔드' | '풀스택' | 'PM/기획' | 'AI/데이터' | 'DevOps' | 'QA/테스트' | '디자인' | '기타'
   confirmedAt   DateTime?
-  confirmedBy   String?   // 팀장 userId (FK 없음 — soft ref)
+  confirmedBy   String? // 팀장 userId (FK 없음 — soft ref)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -112,17 +142,17 @@ model TeamMembership {
 }
 
 model SurveyResponse {
-  id          String    @id @default(uuid())
-  teamId      String
-  userId      String
-  answers     Json      // SurveyAnswersSchema로 검증 후 저장
-  metadata    Json?     // SurveyMetadataSchema (draftStep, autosavedAt 등)
+  id               String    @id @default(uuid())
+  teamId           String
+  userId           String
+  answers          Json // SurveyAnswersSchema로 검증 후 저장
+  metadata         Json? // SurveyMetadataSchema (draftStep, autosavedAt 등)
   submitted        Boolean   @default(false)
   submittedAt      DateTime?
   roleReaction     String?
   roleReactionNote String?
   createdAt        DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  updatedAt        DateTime  @updatedAt
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -143,19 +173,19 @@ model KickoffTopicJob {
 }
 
 model KickoffTopic {
-  id          String            @id @default(cuid())
-  teamId      String
-  jobId       String
-  title       String
-  rationale   String
-  tags           String[]
-  sourceIdeaIds  String[]
-  aiGenerated    Boolean           @default(true)
-  confirmedAt DateTime?
-  createdAt   DateTime          @default(now())
-  team        Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  job         KickoffTopicJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  reactions   KickoffReaction[]
+  id            String            @id @default(cuid())
+  teamId        String
+  jobId         String
+  title         String
+  rationale     String
+  tags          String[]
+  sourceIdeaIds String[]
+  aiGenerated   Boolean           @default(true)
+  confirmedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  team          Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  job           KickoffTopicJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reactions     KickoffReaction[]
 }
 
 model KickoffReaction {
@@ -173,31 +203,31 @@ model KickoffReaction {
 }
 
 model BrainstormSession {
-  id               String          @id @default(cuid())
-  teamId           String          @unique
-  phase            BrainstormPhase @default(ideation)
-  facilitationMode String          @default("async")
+  id               String           @id @default(cuid())
+  teamId           String           @unique
+  phase            BrainstormPhase  @default(ideation)
+  facilitationMode String           @default("async")
   startedAt        DateTime?
   endAt            DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  team             Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  team             Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
   ideas            BrainstormIdea[]
 }
 
 model BrainstormIdea {
-  id               String             @id @default(cuid())
-  sessionId        String
-  userId           String
-  title            String
-  description      String
-  type             String             @default("original")
-  createdAt        DateTime           @default(now())
-  session          BrainstormSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user             User               @relation(fields: [userId], references: [id])
-  reactions        IdeaReaction[]
-  buildOnAsParent  IdeaBuildOnEdge[]  @relation("parentIdea")
-  buildOnAsChild   IdeaBuildOnEdge[]  @relation("childIdea")
+  id              String            @id @default(cuid())
+  sessionId       String
+  userId          String
+  title           String
+  description     String
+  type            String            @default("original")
+  createdAt       DateTime          @default(now())
+  session         BrainstormSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id])
+  reactions       IdeaReaction[]
+  buildOnAsParent IdeaBuildOnEdge[] @relation("parentIdea")
+  buildOnAsChild  IdeaBuildOnEdge[] @relation("childIdea")
 
   @@index([sessionId, userId])
 }
