@@ -441,3 +441,39 @@ This file keeps the currently effective working decisions in a compact format.
 
 **일지:** [260409_01](./260409_01-team-context.md)
 
+## KF-041 — OAuth 브랜드 로고는 Lucide React 단일 사용 원칙의 명시적 예외다
+
+**결론:** Google / GitHub / Kakao 등 OAuth provider 브랜드 마크는 Lucide React 단일 사용 원칙(KF-040)의 명시적 예외로 처리한다. 공식 SVG 자산을 `apps/web/public/oauth-logos/`(예: `google.svg`, `github.svg`, `kakao.svg`)에 두고 `next/image`로 로딩한다. Lucide 아이콘으로 대체하지 않는다. SVG 자산은 `<script>`, `<foreignObject>`, 이벤트 핸들러 속성을 포함하지 않은 정적 자산에 한정하며, `next/image`가 image context로 렌더링하므로 `next.config.mjs`의 `dangerouslyAllowSVG` 옵션은 추가하지 않는다.
+
+**이유:** Google/GitHub/Kakao는 각자 브랜드 가이드를 가진 외부 서비스이며, Lucide에는 해당 마크가 없거나 가이드라인 위반이 되는 형태로만 존재한다. 공식 SVG를 사용하지 않으면 OAuth 버튼이 브랜드 가이드를 어기게 되어 사용자 신뢰도와 식별성이 동시에 떨어진다. 단, 예외를 무한정 확장하면 Lucide 단일 사용 원칙이 침식되므로 "OAuth provider 브랜드 마크"라는 좁은 범주에만 한정한다. 자산 위치를 `public/oauth-logos/`로 격리해 다른 디자인 자산과 섞이지 않게 하고, 정적 SVG에 한정해 XSS 위험도를 차단한다.
+
+**영향 범위:** `apps/web/public/oauth-logos/google.svg`, `apps/web/public/oauth-logos/github.svg`, `apps/web/public/oauth-logos/kakao.svg`, `apps/web/app/login/page.tsx`, `apps/web/app/dev-preview/page.tsx`, CLAUDE.md "디자인 시스템 규칙" 섹션의 Lucide 예외 정의
+
+**관련 문서:** KF-040 (Lucide React 단일 사용 원칙)
+
+**일지:** [260409_02](./260409_02-oauth-brand-buttons.md)
+
+## KF-042 — OAuth 브랜드 색상은 OAuth 전용 시맨틱 토큰으로 격리한다
+
+**결론:** OAuth provider 브랜드 색상은 컴포넌트에 raw hex로 박지 않고 OAuth 전용 시맨틱 토큰으로 격리한다. 토큰은 `apps/web/app/globals.css`에 다음 7개를 신설한다: `--tf-oauth-google-bg`, `--tf-oauth-google-border`, `--tf-oauth-google-text`, `--tf-oauth-github-bg`, `--tf-oauth-github-text`, `--tf-oauth-kakao-bg`, `--tf-oauth-kakao-text`. raw hex는 `globals.css` 한 곳에만 존재하고, 컴포넌트는 시맨틱 토큰만 참조한다. 기존 `--tf-kakao-yellow` / `--tf-kakao-text`는 dev-preview/Storybook 호환을 위해 legacy alias로 유지한다.
+
+**이유:** 공식 브랜드 색상을 컴포넌트마다 raw hex로 복사하면 색상 drift와 일관성 붕괴가 필연적으로 발생한다. 시맨틱 토큰으로 격리하면 추후 dark mode, 고대비 모드, hover/active 상태를 토큰 정의 한 곳에서 일괄 조정할 수 있다. `--tf-*` 네임스페이스에 OAuth 영역을 별도 prefix(`--tf-oauth-*`)로 분리하면 일반 SEED 토큰과 OAuth 브랜드 색상을 의미적으로 구분할 수 있고, OAuth 추가/삭제 시 영향 범위가 명확해진다. legacy alias를 유지하는 이유는 dev-preview와 Storybook이 이전 토큰명을 직접 참조하고 있어 한 번에 정리하면 visual regression을 일으킬 수 있기 때문이며, 후속 세션에서 alias 제거를 검토한다.
+
+**영향 범위:** `apps/web/app/globals.css`, `apps/web/app/login/page.tsx`, `apps/web/app/dev-preview/page.tsx`
+
+**관련 문서:** CLAUDE.md "디자인 시스템 규칙"의 시맨틱 토큰 사용 원칙
+
+**일지:** [260409_02](./260409_02-oauth-brand-buttons.md)
+
+## KF-043 — Kakao 이메일/이름 권한이 비즈앱 통과 전이므로 합성 이메일 + 닉네임 fallback을 유지한다
+
+**결론:** Kakao Developers 콘솔(앱 ID 1423308)의 `account_email`, `name` 동의 항목은 비즈앱 등록 + 추가 기능 신청 + 심사 통과 후에만 활성화 가능하다. 심사 통과 전까지 NextAuth Kakao provider는 다음 정책을 유지한다: (1) 사용자 식별자는 합성 이메일 `kakao_<id>@teamforge.local` 형식으로 생성하고, (2) `name`은 Kakao `profile_nickname`을 그대로 사용한다. 이 정책은 `apps/web/lib/auth.ts:36-44`에 이미 구현되어 있어 이번 작업에서 코드 변경은 발생하지 않았다. `profile_image`는 사용 안 함에서 선택 동의로 변경했으나 NextAuth 매핑에는 사용하지 않는다.
+
+**이유:** Kakao 비즈앱 등록은 사용자 직접 작업 영역이며 심사 기간이 길기 때문에 그 사이 사용자 식별 경로가 끊기면 안 된다. 합성 이메일은 다른 OAuth provider(Google/GitHub)가 제공하는 실제 이메일과 충돌하지 않도록 `@teamforge.local` 도메인으로 격리해 두며, 같은 Kakao 사용자가 재로그인할 때 동일 식별자가 생성되도록 `id`를 키로 사용한다. 닉네임 fallback은 사용자 표시명을 유지해 UX 단절을 막는다. 정책 자체는 임시 조치임을 명시하며, 비즈앱 통과 후에는 KF-043을 재평가해 합성 이메일 사용자를 실제 이메일로 마이그레이션하는 절차를 별도로 설계한다.
+
+**영향 범위:** `apps/web/lib/auth.ts` (Kakao provider 매핑 — 이번 세션에서는 변경 없음), Kakao Developers 콘솔 동의 항목 설정, 향후 비즈앱 통과 시 마이그레이션 runbook (미작성)
+
+**관련 문서:** CLAUDE.md "환경변수" 섹션 (`KAKAO_CLIENT_ID` 분기), `apps/web/lib/auth.ts:36-44` 합성 이메일 fallback 로직
+
+**일지:** [260409_02](./260409_02-oauth-brand-buttons.md)
+

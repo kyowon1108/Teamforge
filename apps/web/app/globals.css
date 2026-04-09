@@ -58,9 +58,18 @@
     --safe-area-inset-top:     env(safe-area-inset-top, 0px);
     --safe-area-inset-bottom:  env(safe-area-inset-bottom, 0px);
 
-    /* ── Brand tokens (카카오) ───────────────────────────────── */
+    /* ── Brand tokens (카카오 — legacy alias) ────────────────── */
     --tf-kakao-yellow:         #fee500;
     --tf-kakao-text:           #191919;
+
+    /* ── OAuth provider brand colors (브랜드 가이드 강제값 — 변경 불가) ── */
+    --tf-oauth-google-bg:      #FFFFFF;
+    --tf-oauth-google-border:  #DADCE0;
+    --tf-oauth-google-text:    #1F1F1F;
+    --tf-oauth-github-bg:      #24292F;
+    --tf-oauth-github-text:    #FFFFFF;
+    --tf-oauth-kakao-bg:       #FEE500;
+    --tf-oauth-kakao-text:     rgba(0, 0, 0, 0.85);
 
     /* ── Primitive palette ───────────────────────────────────── */
     --tf-blue-500:             #4E8EF7;

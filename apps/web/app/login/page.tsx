@@ -1,6 +1,6 @@
+import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { Globe, GitBranch } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { signInWithProvider } from './actions';
@@ -56,16 +56,24 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             >
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-3 h-11 rounded-md border font-medium text-sm transition-colors"
+                className="w-full flex items-center justify-center gap-3 font-medium text-sm transition-opacity hover:opacity-90"
                 style={{
                   minHeight: '44px',
-                  borderColor: 'var(--tf-border-subtle)',
-                  background: 'var(--tf-surface-card)',
-                  color: 'var(--tf-text-primary)',
+                  height: '44px',
+                  background: 'var(--tf-oauth-google-bg)',
+                  color: 'var(--tf-oauth-google-text)',
+                  border: '1px solid var(--tf-oauth-google-border)',
+                  borderRadius: '6px',
                 }}
               >
-                <Globe size={18} />
-                Google로 계속하기
+                <Image
+                  src="/oauth-logos/google.svg"
+                  alt=""
+                  width={18}
+                  height={18}
+                  aria-hidden="true"
+                />
+                Google 계정으로 로그인
               </button>
             </form>
 
@@ -78,20 +86,29 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             >
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-3 h-11 rounded-md border font-medium text-sm transition-colors"
+                className="w-full flex items-center justify-center gap-3 font-medium text-sm transition-opacity hover:opacity-90"
                 style={{
                   minHeight: '44px',
-                  borderColor: 'var(--tf-border-subtle)',
-                  background: 'var(--tf-surface-card)',
-                  color: 'var(--tf-text-primary)',
+                  height: '44px',
+                  background: 'var(--tf-oauth-github-bg)',
+                  color: 'var(--tf-oauth-github-text)',
+                  border: 'none',
+                  borderRadius: '6px',
                 }}
               >
-                <GitBranch size={18} />
-                GitHub으로 계속하기
+                <Image
+                  src="/oauth-logos/github.svg"
+                  alt=""
+                  width={18}
+                  height={18}
+                  aria-hidden="true"
+                  style={{ filter: 'invert(1)' }}
+                />
+                GitHub 계정으로 로그인
               </button>
             </form>
 
-            {/* Kakao 로그인 — KAKAO_CLIENT_ID 있을 때만 표시 */}
+            {/* Kakao 로그인 — KAKAO_CLIENT_ID 있을 때만 활성 */}
             {kakaoEnabled ? (
               <form
                 action={async () => {
@@ -101,48 +118,47 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               >
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-3 h-11 rounded-md font-medium text-sm transition-colors"
+                  className="w-full flex items-center justify-center gap-3 font-medium text-sm transition-opacity hover:opacity-90"
                   style={{
                     minHeight: '44px',
-                    background: 'var(--tf-kakao-yellow)',
-                    color: 'var(--tf-kakao-text)',
+                    height: '44px',
+                    background: 'var(--tf-oauth-kakao-bg)',
+                    color: 'var(--tf-oauth-kakao-text)',
                     border: 'none',
+                    borderRadius: '6px',
                   }}
                 >
-                  {/* 카카오 로고 SVG (Lucide 없음 — 브랜드 필수 SVG 사용) */}
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
+                  <Image
+                    src="/oauth-logos/kakao.svg"
+                    alt=""
+                    width={18}
+                    height={18}
                     aria-hidden="true"
-                  >
-                    <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.695 1.593 5.065 4.01 6.515l-1.02 3.795a.375.375 0 0 0 .547.42l4.428-2.94A11.76 11.76 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z" />
-                  </svg>
-                  카카오로 계속하기
+                  />
+                  카카오 로그인
                 </button>
               </form>
             ) : (
               <div
-                className="w-full flex items-center justify-center gap-3 h-11 rounded-md font-medium text-sm opacity-50 cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 font-medium text-sm opacity-50 cursor-not-allowed"
                 style={{
                   minHeight: '44px',
-                  background: 'var(--tf-kakao-yellow)',
-                  color: 'var(--tf-kakao-text)',
+                  height: '44px',
+                  background: 'var(--tf-oauth-kakao-bg)',
+                  color: 'var(--tf-oauth-kakao-text)',
                   border: 'none',
+                  borderRadius: '6px',
                 }}
                 aria-disabled="true"
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
+                <Image
+                  src="/oauth-logos/kakao.svg"
+                  alt=""
+                  width={18}
+                  height={18}
                   aria-hidden="true"
-                >
-                  <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.695 1.593 5.065 4.01 6.515l-1.02 3.795a.375.375 0 0 0 .547.42l4.428-2.94A11.76 11.76 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z" />
-                </svg>
-                카카오로 계속하기
+                />
+                카카오 로그인
                 <Badge variant="secondary" className="ml-1 text-xs">
                   준비 중
                 </Badge>
