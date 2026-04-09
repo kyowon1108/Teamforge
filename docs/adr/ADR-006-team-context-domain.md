@@ -4,6 +4,8 @@
 - 날짜: 2026-04-09
 - 관련: KF-036, KF-037, KF-038, Screen 3a Team Create, Screen 6 Team Dashboard, Screen 7a/7b Brainstorm
 
+> 후속 구현 메모 (2026-04-09 repo audit): 최종 병합본에는 `teamGoal`이 포함되지 않고, Team Context의 선택 필드는 `domainHints`다. 또한 현재 `/team/create` 웹 폼은 boolean 3종을 2-state 체크박스로 수집하므로 신규 생성 팀에서는 `false/null`을 구분해 입력하지 않는다. nullable 저장 구조는 legacy 호환과 향후 tri-state 확장을 위해 유지된다.
+
 ## 배경
 
 기존 TeamForge는 개인 단위 설문 데이터(`Survey`)만으로 GPT-4o 주제 제안과 브레인스토밍 클러스터링을 수행했다. 그러나 다음 한계가 반복적으로 관찰됐다.
@@ -28,7 +30,7 @@
 
 - `teamType TeamType?`, `projectDuration ProjectDuration?`, `completionTarget CompletionTarget?` — enum, nullable
 - `hasNonDeveloper Boolean?`, `usesVibeCoding Boolean?`, `hasSkillGap Boolean?` — boolean, nullable, **default 값 없음**
-- `teamGoal String?` — 자유 텍스트, nullable
+- `domainHints String[]` — 최대 2개, 선택 입력
 
 boolean 3종은 Prisma `Boolean?`로 선언하고 `@default`를 두지 않는다. 세 가지 상태 "true / false / null(미입력)"이 명시적으로 구분되며, legacy 팀의 미입력과 팀장이 "아니오"를 선택한 상태가 데이터상 섞이지 않는다.
 
@@ -90,7 +92,7 @@ boolean 3종은 Prisma `Boolean?`로 선언하고 `@default`를 두지 않는다
 
 - null 처리 로직이 여러 경로에 퍼진다. Dashboard 배너, AI 프롬프트 주입, 폼 pre-fill, 배지 렌더 모두 null을 "정보 없음"으로 조건부 처리해야 한다.
 - Prisma enum과 Zod enum이 두 파일로 나뉘어 있어, 값 추가 시 양쪽을 동시에 수정하고 마이그레이션을 돌려야 한다. drift 감지용 CI 테스트가 안전장치다.
-- 팀 생성 폼의 입력 필드 수가 늘어나 Screen 3a의 UX 복잡도가 증가한다. 섹션 분할과 "선택 안 함" 옵션으로 완화했지만, 팀장이 폼을 skip하고 싶은 유인이 생긴다.
+- 팀 생성 폼의 입력 필드 수가 늘어나 Screen 3a의 UX 복잡도가 증가한다. 섹션 분할과 optional checkbox groups로 완화했지만, 팀장이 폼을 skip하고 싶은 유인이 생긴다.
 
 **새로 생기는 제약:**
 

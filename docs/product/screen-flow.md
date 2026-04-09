@@ -50,13 +50,13 @@ Login (OAuth)
 | --- | --- | --- | --- | --- | --- |
 | 1 Login | `/login` | no active session | valid OAuth session | ✅ | implemented |
 | 2 Role Select | `/role-select` | — **deprecated** — | redirects to `/dashboard` | ⚠️ | deprecated |
-| 3a Team Create | `/team/create` | authenticated, dashboard CTA clicked | team created, invite code shown, then → `/team/[teamId]` | ✅ | implemented |
-| 3b Team Join | `/team/join` | authenticated, dashboard CTA clicked | team joined (role: member\|observer), then → `/team/[teamId]` | ✅ | implemented |
+| 3a Team Create | `/team/create` | authenticated, dashboard CTA clicked | team created, invite code shown, then → `/team/[teamId]/survey` | ✅ | implemented |
+| 3b Team Join | `/team/join` | authenticated, dashboard CTA clicked | team joined (role: member\|observer), then → `/team/[teamId]/survey` | ✅ | implemented |
 | 4 Skill Assessment | `/team/[teamId]/survey` | team membership exists, role is leader or member | survey submitted or saved | ✅ | implemented |
-| 5 Personal Result | `/team/[teamId]/result` | survey submitted (leader/member only) | role reaction saved or skipped | ⚠️ | implemented (반응 버튼 개선 필요 — P0-A) |
-| 6 Team Dashboard | `/dashboard` (global) + `/team/[teamId]/dashboard` (per-team) | authenticated | kickoff CTA clicked (all surveys submitted) | ⚠️ | implemented (팀 스킬 요약 패널 미구현 — P0-B) |
-| 7a Brainstorm | `/team/[teamId]/topic/brainstorm` | all surveys submitted (phase: survey_complete) | AI 클러스터링 완료, Stage 4로 전환 | ⬜ | ready-for-build (KF-031) |
-| 7b Topic Decision | `/team/[teamId]/topic` | 브레인스토밍 Stage 3 완료 | topic confirmed by leader | ⬜ | ready-for-build (KF-031) |
+| 5 Personal Result | `/team/[teamId]/result` | survey submitted (leader/member only) | role reaction saved, leader view/role finalize linked | ✅ | implemented |
+| 6 Team Dashboard | `/dashboard` (global) + `/team/[teamId]/dashboard` (per-team) | authenticated | kickoff CTA clicked (all surveys submitted) | ✅ | implemented |
+| 7a Brainstorm | `/team/[teamId]/topic/brainstorm` | all surveys submitted (phase: survey_complete) | ideation/sharing/clustering, then Stage 4 handoff | ⚠️ | implemented (stage payload contract 재검증 필요) |
+| 7b Topic Decision | `/team/[teamId]/topic` | 브레인스토밍 Stage 3 완료 | topic confirmed by leader | ⚠️ | implemented (수동 커스텀 주제는 local draft 수준) |
 | 8a System Framing | `/team/[teamId]/structure` | topic confirmed via 7b (phase: topic_confirmed) | structure blocks accepted by leader | ⬜ | ready-for-build |
 | 8b Technical Narrowing | `/team/[teamId]/stack` | structure accepted (phase: structure_accepted) | stack confirmed by leader | ⬜ | ready-for-build |
 | 9 Handoff Layer | `/team/[teamId]/handoff` | stack confirmed (phase: stack_confirmed) | all artifacts accepted by leader | ⬜ | needs-adr (KF-015) |
@@ -100,13 +100,13 @@ Legend:
 | 4 Skill Assessment | `/team/[teamId]/survey` | rw | rw | - | Observer redirects to `/dashboard` |
 | 5 Personal Result | `/team/[teamId]/result` | rw | rw | - | Observer redirects to `/dashboard` |
 | 6 Team Dashboard (global) | `/dashboard` | rw | rw | r | Shows all teams user belongs to; CTA buttons for create/join |
-| 6 Team Dashboard (per-team) | `/team/[teamId]` | rw | rw | r | Observer sees aggregated view, no edit actions |
-| 7a Brainstorm | `/team/[teamId]/topic/brainstorm` | rw | rw | r | leader/member: 아이디어 작성+Build-on+공감; leader: 단계 전환+AI 정리 요청; observer: 읽기 전용 (KF-031) |
-| 7b Topic Decision | `/team/[teamId]/topic` | rw | react | r | leader: Dot voting+주제 확정+커스텀 입력; member: Dot voting(인당 2표); observer: 읽기 전용. topic_confirmed 이후 전체 read-only (KF-023, KF-033) |
-| 8 Architecture Builder | `/team/[teamId]/kickoff/architecture` | rw | rw | r | Observer cannot select options |
-| 9 Handoff Layer | `/team/[teamId]/kickoff/handoff` | rw | r | r | Member views generated artifacts, cannot regenerate |
-| 10 Contract Gate | `/team/[teamId]/kickoff/summary` | rw + sign | r + react | r | Leader signs; member acknowledges; observer reads |
-| 11 Meeting Hub | `/team/[teamId]/meetings` | rw | rw | r | Observer cannot create or edit meeting records |
+| 6 Team Dashboard (per-team) | `/team/[teamId]/dashboard` | rw | rw | r | Observer sees aggregated view, no edit actions |
+| 7a Brainstorm | `/team/[teamId]/topic/brainstorm` | rw | rw | r | leader/member: 아이디어 작성+Build-on+반응; leader: 단계 전환+clustering trigger; observer: 읽기 전용 (KF-031) |
+| 7b Topic Decision | `/team/[teamId]/topic` | rw | react | r | leader: Dot voting+주제 확정+커스텀 입력 초안; member: Dot voting(총 2표, topic당 1표); observer: 읽기 전용. topic_confirmed 이후 전체 read-only (KF-023, KF-033) |
+| 8 Architecture Builder | `/team/[teamId]/structure` | rw | rw | r | Observer cannot select options |
+| 9 Handoff Layer | `/team/[teamId]/handoff` | rw | r | r | Member views generated artifacts, cannot regenerate |
+| 10 Contract Gate | `/team/[teamId]/contract` | rw + sign | r + react | r | Leader signs; member acknowledges; observer reads |
+| 11 Meeting Hub | `/team/[teamId]/meeting` | rw | rw | r | Observer cannot create or edit meeting records |
 | 12 Direction Tracker | `/team/[teamId]/tracker` | rw | r | r | Only leader can record snapshots |
 | 13 Change Management | `/team/[teamId]/changes` | rw | rw | r | Both leader and member can open change requests |
 | 14 Observer Dashboard | `/team/[teamId]/overview` | r | r | r | Aggregate read for all roles; no mutations |
@@ -137,6 +137,7 @@ These rules apply in order. The first matching condition wins.
 /meeting
 /changes
 /settings
+/dev-preview
 ```
 
 ---
@@ -179,7 +180,7 @@ The old pattern of redirecting to `/role-select` after OAuth is removed. Role as
         -> creator assigned leader role automatically
         -> invite code generated
      -> success: invite code shown with copy button
-     -> "팀 페이지로 이동" → /team/[teamId]
+     -> "팀 페이지로 이동" → /team/[teamId]/survey
 
 권한:
   - 팀 생성 시점에만 팀장이 입력한다 (팀장 단독 입력).
@@ -191,8 +192,9 @@ Team Context 필드 스키마 소스:
   - 백엔드/프론트엔드/Prisma 모두 이 파일에서 enum을 import (KF 신규)
 
 Boolean 정책:
-  - hasNonDeveloper, usesVibeCoding, hasSkillGap 는 nullable, default 없음.
-  - legacy 팀(도입 전 생성된 팀)과 "선택 안 함"을 의미적으로 구분하기 위해 nullable을 채택 (KF 신규).
+  - contracts/prisma 레이어는 hasNonDeveloper, usesVibeCoding, hasSkillGap 를 nullable로 유지한다.
+  - 현재 `/team/create` UI는 이 세 필드를 2-state 체크박스로 수집하므로, 미체크 상태는 `false`로 전송된다.
+  - 따라서 `null`은 현재 repo에서 legacy 팀 또는 비폼 입력 경로를 통해서만 보존된다.
 
 Error states:
   - teamName < 2 or > 50 chars: inline validation (client-side)
@@ -337,7 +339,7 @@ observer: can enter Screen 6, 7, 8a, 8b, 10, 11 in read-only mode
 - Radar chart with 6 axes (see scoring below)
 - Top 2 strength labels (highest scoring axes)
 - Bottom 1 gap label (lowest scoring axis)
-- Role suggestion card: AI-generated suggested role based on profile
+- Role suggestion card: `workArchetype`와 설문 답변을 기반으로 계산된 suggested role
 - Role reaction prompt: "이 역할 추천이 어떤가요?" (ok/burden/prefer_other — saved to DB)
   - "괜찮아요" (ok)
   - "부담돼요" (burden)
@@ -347,22 +349,25 @@ observer: can enter Screen 6, 7, 8a, 8b, 10, 11 in read-only mode
 
 **Radar Chart — 6 Axes and Scoring Source**
 
-The axes map directly to the 6 survey sections in `SurveyAnswersSchema`:
+현재 레이더 차트는 `SurveyAnswersSchema`의 9개 입력 섹션을 그대로 1:1 매핑하지 않는다. Screen 5/6 시각화는 6축을 유지하고, Section 7~9는 별도 카드(blockProfile, 역할 적합도, AI 지원 계획)에 반영된다.
 
-| Axis Label | Survey Section | Score Calculation |
-|-----------|---------------|-------------------|
-| 기획력 (Planning) | Section 1 — Role & Contribution | average of s1 question scores |
-| 기술력 (Technical) | Section 2 — Tech Stack | average of s2 question scores |
-| 소통력 (Communication) | Section 3 — Collaboration Style | average of s3 question scores |
-| 추진력 (Drive) | Section 4 — Work Preference | average of s4 question scores |
-| 창의력 (Creativity) | Section 5 — Conflict & Decision | average of s5 question scores |
-| 성장력 (Growth) | Section 6 — Portfolio & Background | selfIntro richness + GitHub presence |
+| Axis Label | Primary Inputs | Current Calculation Basis |
+|-----------|----------------|---------------------------|
+| 기획력 (Planning) | Section 1 — Basic Info | `experienceTier` + `backgroundType` bonus |
+| 기술력 (Technical) | Section 2 — Tech Stack | `techStackList` + `skillRatings` |
+| 소통력 (Communication) | Section 3 — Project Experience | `projectCount`, `gitCollabLevel`, `actualRoles` |
+| 추진력 (Drive) | Section 4 — Collaboration Style | `workArchetype` + `workStyleVector` |
+| 창의력 (Creativity) | Section 5 — Availability | `freeText` richness |
+| 성장력 (Growth) | Section 6 — Portfolio | `githubUrl` + `selfIntro` |
 
-Scoring rules:
-- Each multiple-choice question maps to 1–5 scale (defined in `SurveyAnswersSchema`)
-- Section average = sum of question scores / question count in section
-- Section 6 score: `githubUrl` present = +2, `selfIntro` length > 100 chars = +2, else = 1 (floor)
-- All axes normalized to 0–100 for chart display
+Additional derived cards:
+- Section 7 — `blockConfidence` → `blockProfile`
+- Section 8 — `collabChecklist` → collaboration/team risk indicators
+- Section 9 — `aiProfile` → `aiSupportPlan`
+
+Scoring notes:
+- Axis scores are 서버에서 계산되며 0–100으로 정규화된다.
+- suggested role은 별도 AI 호출이 아니라 `workArchetype` 기반 rule mapping이다.
 
 **Strength / Gap Labeling:**
 - Strength: top 2 axes with score >= 60
@@ -370,10 +375,13 @@ Scoring rules:
 - If all axes >= 60: show "전반적으로 균형잡힌 프로필" message, no gap label
 
 **API dependencies:**
-- `GET /api/teams/:teamId/survey/result` — returns computed axis scores + AI role suggestion
-- `POST /api/teams/:teamId/survey/reaction` — saves role reaction
-  - Body: `{ reaction: 'ok' | 'burden' | 'prefer_other', preferOtherNote?: string }`
-  - DONE (260407_02): 'ok'/'burden'/'prefer_other' 값으로 변경 완료. DB migration 20260407031550 적용.
+- `GET /api/teams/:teamId/survey/result/me` — 본인 결과
+- `GET /api/teams/:teamId/survey/result/:userId` — 팀장 전용 팀원 결과 열람
+- `GET /api/teams/:teamId/kickoff/members` — 팀장 전용 팀원 목록 + submitted/finalRole
+- `GET /api/teams/:teamId/kickoff/roles/me` — 본인 확정 역할 조회
+- `POST /api/teams/:teamId/kickoff/roles/finalize` — 팀장 역할 확정
+- `POST /api/teams/:teamId/survey/role-reaction` — 역할 반응 저장
+  - Body: `{ reaction: 'ok' | 'burden' | 'prefer_other', note?: string }`
 
 **Role differences:**
 
@@ -386,7 +394,7 @@ Scoring rules:
 **Error states:**
 - Survey not submitted → redirect to survey page with banner: "설문을 먼저 완료해야 결과를 볼 수 있어요"
 - API score fetch fails → skeleton error state + "다시 시도" button
-- AI role suggestion timeout (>10s) → show placeholder "분석 중..." spinner, poll every 3s up to 3 attempts
+- 팀장이 미제출 팀원 결과 요청 → 404 기반 빈 상태 또는 본인 결과 뷰로 복귀
 
 ---
 
@@ -487,7 +495,7 @@ Scoring rules:
   domainHints
 </team_context>
 <survey_data>
-  팀원별 SurveyResponse.answers 집계 (6섹션)
+  팀원별 SurveyResponse.answers 집계 (현재 9섹션 입력)
 </survey_data>
 <ideas>
   Stage 1~2에서 수집된 아이디어 원문 + build-on + merge 관계
@@ -499,17 +507,18 @@ Scoring rules:
 - Team Context가 비어있는 legacy 팀은 `<team_context>` 블록을 생략하고 과거 동작으로 fallback.
 
 **실시간 이벤트:**
-- Socket.io 미도입 (KF-022). Stage 2 공감/Build-on 갱신은 10초 폴링.
+- Socket.io 이벤트 사용: `brainstorm:idea_submitted`, `brainstorm:idea_merged`, `brainstorm:idea_reacted`, `brainstorm:phase_advanced`
+- WebSocket 연결 실패 시 `GET /api/teams/:teamId/brainstorm/ideas` 폴링으로 fallback
 
 **API 의존성:**
+- `GET /api/teams/:teamId/brainstorm` -- session upsert + 현재 phase용 데이터 반환
 - `POST /api/teams/:teamId/brainstorm/ideas` -- 아이디어 생성
-- `GET /api/teams/:teamId/brainstorm/ideas/mine` -- Stage 1 본인 아이디어
-- `GET /api/teams/:teamId/brainstorm/ideas` -- Stage 2 전체 아이디어
-- `POST /api/teams/:teamId/brainstorm/ideas/:ideaId/empathy` -- 공감 토글
-- `POST /api/teams/:teamId/brainstorm/ideas/:ideaId/buildon` -- Build-on 생성
-- `POST /api/teams/:teamId/brainstorm/advance` -- Stage 1 -> 2 전환 (leader only)
-- `POST /api/teams/:teamId/brainstorm/cluster` -- AI 클러스터링 요청 (leader only, 202)
-- `GET /api/teams/:teamId/brainstorm/cluster` -- 클러스터링 결과 폴링
+- `POST /api/teams/:teamId/brainstorm/ideas/:ideaId/build-on` -- Build-on 생성
+- `POST /api/teams/:teamId/brainstorm/ideas/:ideaId/react` -- like/comment 반응
+- `POST /api/teams/:teamId/brainstorm/ideas/merge` -- 아이디어 병합
+- `GET /api/teams/:teamId/brainstorm/ideas` -- 경량 polling endpoint
+- `POST /api/teams/:teamId/brainstorm/advance` -- Stage 1 -> 2, Stage 2 -> 3(클러스터링 트리거)
+- `GET /api/teams/:teamId/topic` -- clustering 완료 여부 polling 및 topic list 반환
 
 **역할 분기:**
 
@@ -521,7 +530,7 @@ Scoring rules:
 | AI 정리 요청 | yes | no | no |
 | 재생성 요청 | yes (최대 2회) | no | no |
 
-**DB 테이블:** `BrainstormIdea`, `BrainstormEmpathy`, `BrainstormClusterJob`, `BrainstormCluster` (KF-031)
+**DB 테이블:** `BrainstormSession`, `BrainstormIdea`, `IdeaBuildOnEdge`, `IdeaReaction`, `KickoffTopicJob`, `KickoffTopic`
 
 **에러 상태:**
 - 설문 미완료 -> Screen 6로 리다이렉트
@@ -544,22 +553,21 @@ Scoring rules:
 
 **핵심 UI (Stage 4 -- Dot Voting + 확정):**
 - AI가 정리한 3~5개 클러스터가 투표 카드로 표시 (클러스터 생성 시 이미 Team Context가 프롬프트에 주입됨 — 7a 참조)
-- Dot voting: 인당 2표, 같은 클러스터 중복 투표 허용 (KF-033)
+- Dot voting: 인당 최대 2표. 현재 repo 구현은 `topicId + userId` 유니크 제약으로 주제당 1표까지 허용한다.
 - 투표 현황 10초 폴링 갱신
 - leader: "이 주제로 확정" 버튼 (투표 결과 참고, 강제 아님)
-- leader: 커스텀 주제 직접 입력 옵션 유지
+- leader: 커스텀 주제 직접 입력 UI는 존재하지만, 현재 repo에서는 local draft 수준이며 서버 확정 경로는 연결되지 않았다
 - 확정 후 read-only 전환 (KF-023)
 - CTA: "다음: 아키텍처 설계" -> `/team/[teamId]/structure`
 
 **실시간 이벤트:**
-- Socket.io 미도입 (KF-022). 투표 현황 10초 폴링.
-- `topic:confirmed` 감지는 10초 폴링으로 대체.
+- Socket.io 이벤트 사용: `topic:vote_cast`, `topic:confirmed`
+- 초기 로딩 및 WebSocket 미연결 시 `GET /api/teams/:teamId/topic` 폴링으로 fallback
 
 **API 의존성:**
-- `GET /api/teams/:teamId/topic` -- 클러스터 기반 주제 목록
-- `POST /api/teams/:teamId/topic/vote` -- Dot voting (인당 2표)
-- `GET /api/teams/:teamId/topic/votes` -- 투표 현황 집계
-- `POST /api/teams/:teamId/topic/confirm` -- 주제 확정 (leader only), phase -> `topic_confirmed`
+- `GET /api/teams/:teamId/topic` -- 202(`pending`/`processing`) 또는 200(`topics`/`failed`) 반환
+- `POST /api/teams/:teamId/topic/react` -- topic reaction 저장. 현재 voting은 `reaction: 'vote'`로 처리
+- `POST /api/teams/:teamId/topic/confirm` -- 주제 확정 (leader only), brainstorm phase -> `confirmed`
 
 **역할 분기:**
 
@@ -575,12 +583,12 @@ Scoring rules:
 - 재편집 불가 (KF-023).
 - CTA: "다음: 아키텍처 설계" -> `/team/[teamId]/structure`
 
-**DB 테이블:** `TopicVote` (신규, KF-033), `KickoffTopic`, `KickoffReaction` (기존, KF-019)
+**DB 테이블:** `KickoffTopic`, `KickoffReaction`, `KickoffTopicJob`
 
 **에러 상태:**
 - 클러스터링 미완료 -> 7a로 리다이렉트
-- 투표 초과 시도 -> "투표는 최대 2개까지 가능해요" 토스트
-- 확정 후 투표 시도 -> 409 응답, "주제가 이미 확정되었습니다" 메시지
+- 투표 초과 시도 -> 403 응답 + "투표는 최대 2표까지 가능합니다"
+- 확정 후 투표 시도 -> 403 응답 + "이미 확정된 주제에는 반응을 변경할 수 없습니다"
 - 리더 확정 전 전원 미투표 -> 허용, "아직 투표하지 않은 팀원이 있어요" 경고 (차단 아님)
 - 네트워크 오류 -> 재시도 버튼
 
@@ -984,34 +992,34 @@ meeting_active    — (Screen 11 구현 이후)
 
 #### 호출 시점 및 패턴
 
-Screen 7~8a의 AI 호출은 모두 "사용자가 화면에 진입할 때 최초 1회" 트리거된다.
+Screen 7~8a의 AI 호출은 모두 화면 상태 전이 시점에 트리거된다. 현재 repo 기준으로는 Screen 7 topic은 `GET /topic`, brainstorm clustering은 `POST /brainstorm/advance`, Screen 8a는 아직 미구현이다.
 
 | 화면 | 트리거 | 입력 컨텍스트 |
 |------|--------|-------------|
-| Screen 7 | `GET /topic/suggestions` 최초 요청 시 | **Team Context (2026-04-09 추가)** + 팀 전체 SurveyResponse answers (요약) |
-| Screen 7a (brainstorm) | `POST /brainstorm/cluster` 최초 요청 시 | **Team Context (2026-04-09 추가)** + Stage 1~2 아이디어 원문 + build-on/merge 관계 + 팀 SurveyResponse 요약 |
+| Screen 7b | `GET /topic` 최초 요청 시 | **Team Context (2026-04-09 추가)** + 팀 전체 SurveyResponse answers (요약) |
+| Screen 7a (brainstorm) | `POST /brainstorm/advance`로 `sharing -> clustering` 전환 시 | **Team Context (2026-04-09 추가)** + Stage 1~2 아이디어 원문 + build-on/merge 관계 + 팀 SurveyResponse 요약 |
 | Screen 8a | `GET /structure/suggestions` 최초 요청 시 | confirmedTopic + 팀 tech profile (s2 answers 집계) |
 | Screen 8b | `GET /stack/options` | 8a acceptedBlocks + 팀 tech preference (s2 집계) |
 
 > Team Context 주입 범위: `kickoff.service.ts`의 주제 제안 생성과 `brainstorm.service.ts`의 클러스터링 **두 곳 모두**에서 `<team_context>` XML 블록을 `<survey_data>` 앞에 주입한다. 팀 단위 운영 맥락(Team)과 개인 단위 역량(Survey)은 레벨이 다른 입력이므로 둘 다 필요하다. 상세 설계: `docs/architecture/team-context-vs-survey-boundary.md`.
 
-Screen 8b는 AI 신규 생성이 아닌 acceptedBlocks 기반 옵션 목록 조회다. Claude API 호출 없이 사전 정의된 tech 옵션 매핑 + 설문 선호도 집계로 처리한다.
+Screen 8b는 AI 신규 생성이 아닌 acceptedBlocks 기반 옵션 목록 조회다. GPT-4o 추가 호출 없이 사전 정의된 tech 옵션 매핑 + 설문 선호도 집계로 처리한다.
 
 #### AI Job 처리 패턴
 
-Screen 7/8a는 Claude API 응답 시간이 5~15초 예상이므로 동기 HTTP 응답으로 처리하지 않는다.
+Screen 7/8a는 GPT-4o 응답 시간이 5~15초 예상이므로 동기 HTTP 응답으로 처리하지 않는다.
 
 ```
-클라이언트 → GET /topic/suggestions
+클라이언트 → GET /topic
   서비스 계층 확인:
-    KickoffTopic.suggestions 이미 존재 → 즉시 반환 (200)
-    존재하지 않음 → AI job 시작 → { status: 'pending', jobId } 반환 (202)
+    KickoffTopicJob completed + topics 존재 → 즉시 반환 (200)
+    job 없음/processing → AI job 시작 또는 기존 job 재사용 → { status: 'pending'|'processing', jobId } 반환 (202)
 
 클라이언트 → 5초 간격 polling:
-  GET /topic/suggestions?jobId=xxx
-    job 완료 → suggestions 반환 (200)
+  GET /topic
+    job 완료 → topics 반환 (200)
     job 실패 → { status: 'failed' } 반환 (200, 에러 아님)
-    job 진행 중 → { status: 'pending' } 반환 (200)
+    job 진행 중 → { status: 'pending'|'processing' } 반환 (202)
 ```
 
 polling은 최대 5회(25초). 5회 이후에도 pending이면 클라이언트에서 fallback UI(수동 입력 폼) 전환.
@@ -1030,7 +1038,7 @@ structure-suggestions.schema.ts // StructureSuggestionsSchema
 
 | 화면 | Fallback 트리거 | Fallback 내용 |
 |------|----------------|--------------|
-| Screen 7 | AI job failed 또는 5회 polling 초과 | 자유 입력 텍스트 폼 (직접 주제 입력) |
+| Screen 7 | AI job failed 또는 5회 polling 초과 | leader용 수동 주제 draft UI 표시. 현재 repo에서는 서버 확정 경로 미연결 |
 | Screen 8a | AI job failed 또는 5회 polling 초과 | 사전 정의 기본 블록 세트 + 배너 표시 |
 | Screen 8b | N/A (AI 미사용) | 정상 흐름과 동일 |
 
@@ -1158,7 +1166,7 @@ Phase lock 후 이전 화면 진입 시 redirect가 아닌 read-only 모드 렌�
 |------|---------|
 | AI pending 5회 초과 | fallback UI 전환 + "AI 분석 실패" 배너 |
 | non-leader가 confirm/accept POST 시도 | 서버 403, 클라이언트 버튼 비활성화로 사전 차단 |
-| 이미 confirmed된 topic 재확정 시도 | 서버 409, 클라이언트 이미 lock 상태 표시 |
+| 이미 confirmed된 topic 재확정 시도 | 서버 200 idempotent 응답, 클라이언트는 이미 lock 상태 표시 |
 | AI 응답 스키마 파싱 실패 3회 | job status `failed` 전환, fallback 활성화 |
 | 팀원 미반응 상태에서 leader confirm | 허용, "아직 반응 안 한 팀원이 있어요" 경고 toast만 표시 |
 
@@ -1170,7 +1178,7 @@ Phase lock 후 이전 화면 진입 시 redirect가 아닌 read-only 모드 렌�
 
 ```
 // Screen 7 — Topic
-GET  /api/teams/:teamId/topic/suggestions    — AI 제안 조회 (polling 포함)
+GET  /api/teams/:teamId/topic                — AI 제안 조회 (polling 포함)
 POST /api/teams/:teamId/topic/react          — 멤버 반응 저장
 POST /api/teams/:teamId/topic/confirm        — 팀장 topic 확정 (phase 전이)
 
@@ -1232,17 +1240,18 @@ page.tsx는 Server Component로 phase 검증 및 초기 데이터 fetch를 담�
 
 ---
 
-### 현재 구현 상태 요약 (2026-04-07)
+### 현재 구현 상태 요약 (2026-04-09)
 
 | Screen | 경로 | 구현 상태 | 비고 |
 |--------|------|---------|------|
-| 1 Login | `/login` | ✅ implemented | |
-| 3a Team Create | `/team/create` | ✅ implemented | |
-| 3b Team Join | `/team/join` | ✅ implemented | |
-| 4 Skill Assessment | `/team/[teamId]/survey` | ✅ implemented | |
-| 5 Personal Result | `/team/[teamId]/result` | ✅ implemented | 역할 반응 버튼 개선 필요 (아래 P0 참조) |
-| 6 Team Dashboard | `/team/[teamId]/dashboard` | ✅ implemented | 팀 스킬 패널 미구현 (P0) |
-| 7 Topic Decision | `/team/[teamId]/topic` | ✅ implemented | Observer dev-preview mock 미등록 (P1) |
+| 1 Login | `/login` | ✅ implemented | OAuth 3종 + Kakao fallback 포함 |
+| 3a Team Create | `/team/create` | ✅ implemented | Team Context 입력 포함 |
+| 3b Team Join | `/team/join` | ✅ implemented | member / observer 선택 |
+| 4 Skill Assessment | `/team/[teamId]/survey` | ✅ implemented | 현재 9섹션 입력 |
+| 5 Personal Result | `/team/[teamId]/result` | ✅ implemented | leader sidebar + member result viewer + role finalize 포함 |
+| 6 Team Dashboard | `/team/[teamId]/dashboard` | ✅ implemented | Team Context 배너 + team insight 포함 |
+| 7a Brainstorm | `/team/[teamId]/topic/brainstorm` | ⚠️ partial | route/API live, stage payload contract 재검증 필요 |
+| 7b Topic Decision | `/team/[teamId]/topic` | ⚠️ partial | AI topic/vote/confirm live, custom manual topic server persist 미연결 |
 | 8a System Framing | `/team/[teamId]/structure` | ⬜ ready-for-build | DB 스키마 확장 필요 |
 | 8b Technical Narrowing | `/team/[teamId]/stack` | ⬜ ready-for-build | 8a 완료 후 착수 |
 | 9 Handoff Layer | `/team/[teamId]/handoff` | ⬜ needs-adr (KF-015) | |
@@ -1273,22 +1282,22 @@ page.tsx는 Server Component로 phase 검증 및 초기 데이터 fetch를 담�
 
 이 반응 데이터는 Screen 10 Contract Gate에서 역할 확정 시 참고 자료로 표시된다.
 
-**DB 영향:** `SurveyResponse` 테이블에 신규 컬럼 없음. 반응은 별도 저장소 필요.
+**DB 영향:** 반응은 `SurveyResponse.roleReaction`, `SurveyResponse.roleReactionNote` 컬럼에 저장된다.
 
-현재 `POST /api/teams/:teamId/survey/reaction`의 응답 값을 `ok | burden | prefer_other` + `preferOtherNote?: string`으로 변경한다. 기존 yes/somewhat/no 반응 데이터는 마이그레이션 스크립트로 ok/burden/prefer_other로 전환하거나, API 계층에서 backward-compatible 매핑을 유지한다.
+현재 반응 저장 계약은 이미 `POST /api/teams/:teamId/survey/role-reaction`로 정리되어 있다. Body는 `ok | burden | prefer_other` + `note?: string`을 사용한다.
 
 **신규 API 계약:**
 
 ```
-POST /api/teams/:teamId/survey/reaction
-Body: { reaction: 'ok' | 'burden' | 'prefer_other', preferOtherNote?: string }
-Response: { saved: true }
+POST /api/teams/:teamId/survey/role-reaction
+Body: { reaction: 'ok' | 'burden' | 'prefer_other', note?: string }
+Response: { roleReaction: string, roleReactionNote: string | null }
 ```
 
 **영향 파일:**
 - `apps/web/app/team/[teamId]/result/result-client.tsx` — 버튼 레이블 및 조건부 텍스트 필드
-- `apps/api/src/survey/survey.service.ts` — reaction 저장 로직 (값 변경)
-- `packages/contracts/src/jsonb/` — reaction 스키마 업데이트
+- `apps/api/src/survey/survey.service.ts` — `SurveyResponse` 컬럼 저장
+- `apps/api/prisma/schema.prisma` — `roleReaction`, `roleReactionNote` 컬럼 반영
 
 **역할별 분기:**
 

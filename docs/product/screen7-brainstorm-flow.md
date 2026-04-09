@@ -1,7 +1,7 @@
 # Screen 7 -- 브레인스토밍 흐름 설계
 
 > 작성일: 2026-04-08
-> 상태: 설계 확정 (구현 전)
+> 상태: 구현 코드 기준 최신화
 > 관련 결정 키: KF-031, KF-032, KF-033
 
 ---
@@ -68,11 +68,11 @@ Screen 7a — Brainstorm (/team/[teamId]/topic/brainstorm)
   |
   |  Stage 2: Sharing + Build-on (전체 공개)
   |    - 모든 아이디어 카드가 전체 공개됨 (실명 표시)
-  |    - 각 아이디어에 공감 버튼 (하트)
+  |    - 각 아이디어에 like / comment 반응
   |    - Build-on 버튼: 기존 아이디어를 기반으로 발전 아이디어 작성
   |      - single-parent: 하나의 원본 아이디어에만 연결 가능
   |      - Build-on 카드에 원본 참조 배지 표시
-  |    - leader가 "AI 정리 요청" 버튼 클릭
+  |    - leader가 단계 전환 버튼 클릭 시 clustering job 트리거
   |
   |  Stage 3: AI Clustering (자동)
   |    - GPT-4o가 전체 아이디어를 분석
@@ -86,10 +86,10 @@ Screen 7b — Topic Decision (/team/[teamId]/topic)
   |
   |  Stage 4: Dot Voting + 확정
   |    - AI가 정리한 3~5개 클러스터가 투표 카드로 표시
-  |    - 인당 2표 Dot voting (중복 투표 가능: 같은 클러스터에 2표 허용)
-  |    - 실시간 투표 현황 표시 (폴링 기반, 10초 간격)
+  |    - 인당 최대 2표 Dot voting (현재 repo는 주제당 1표)
+  |    - 실시간 투표 현황 표시 (Socket.io + 폴링 fallback)
   |    - leader: "이 주제로 확정" 버튼 (투표 결과 참고, 강제 아님)
-  |    - leader: 커스텀 주제 직접 입력 옵션 유지
+  |    - leader: 커스텀 주제 draft UI 존재 (현재 repo에서는 서버 persist 미연결)
   |    - 확정 후 read-only 전환 (KF-023)
   |    - CTA: "다음: 아키텍처 설계" -> /team/[teamId]/structure
   |
@@ -144,10 +144,8 @@ Screen 8a — System Framing (/team/[teamId]/structure)
 
 | 메서드 | 경로 | 설명 | 호출 시점 |
 |--------|------|------|----------|
+| GET | `/api/teams/:teamId/brainstorm` | 세션 upsert + Stage 1 데이터 로드 | 페이지 최초 진입 시 |
 | POST | `/api/teams/:teamId/brainstorm/ideas` | 아이디어 카드 생성 | 팀원이 아이디어 작성 완료 시 |
-| PATCH | `/api/teams/:teamId/brainstorm/ideas/:ideaId` | 아이디어 수정 | 본인 아이디어 수정 시 |
-| DELETE | `/api/teams/:teamId/brainstorm/ideas/:ideaId` | 아이디어 삭제 | 본인 아이디어 삭제 시 |
-| GET | `/api/teams/:teamId/brainstorm/ideas/mine` | 본인 아이디어 목록 | Stage 1 페이지 로드 시 |
 | GET | `/api/teams/:teamId/kickoff/status` | 팀 역량 요약 (teamInsight) | Stage 1 사이드바 렌더링 시 |
 | POST | `/api/teams/:teamId/brainstorm/advance` | Stage 1 -> 2 전환 | leader "공유 단계로 넘어가기" 클릭 시 |
 
@@ -156,24 +154,23 @@ Screen 8a — System Framing (/team/[teamId]/structure)
 | 메서드 | 경로 | 설명 | 호출 시점 |
 |--------|------|------|----------|
 | GET | `/api/teams/:teamId/brainstorm/ideas` | 전체 아이디어 목록 (실명 포함) | Stage 2 페이지 로드 시 |
-| POST | `/api/teams/:teamId/brainstorm/ideas/:ideaId/empathy` | 공감 토글 | 하트 버튼 클릭 시 |
-| POST | `/api/teams/:teamId/brainstorm/ideas/:ideaId/buildon` | Build-on 아이디어 생성 | Build-on 작성 완료 시 |
-| POST | `/api/teams/:teamId/brainstorm/cluster` | AI 클러스터링 요청 (202 반환) | leader "AI 정리 요청" 클릭 시 |
+| POST | `/api/teams/:teamId/brainstorm/ideas/:ideaId/react` | like/comment 반응 | 하트/코멘트 입력 시 |
+| POST | `/api/teams/:teamId/brainstorm/ideas/:ideaId/build-on` | Build-on 아이디어 생성 | Build-on 작성 완료 시 |
+| POST | `/api/teams/:teamId/brainstorm/ideas/merge` | 다중 아이디어 병합 | merge modal 제출 시 |
+| POST | `/api/teams/:teamId/brainstorm/advance` | Stage 2 -> 3 전환 + clustering job 트리거 | leader 단계 전환 시 |
 
 ### Stage 3
 
 | 메서드 | 경로 | 설명 | 호출 시점 |
 |--------|------|------|----------|
-| GET | `/api/teams/:teamId/brainstorm/cluster` | 클러스터링 결과 + job 상태 | 5초 간격 폴링 (최대 5회, KF-020) |
-| POST | `/api/teams/:teamId/brainstorm/cluster/retry` | 재생성 요청 (leader only, 최대 2회) | 재생성 버튼 클릭 시 |
+| GET | `/api/teams/:teamId/topic` | 클러스터링 결과 + job 상태 | 5초 간격 폴링 (최대 5회, KF-020) |
 
 ### Stage 4
 
 | 메서드 | 경로 | 설명 | 호출 시점 |
 |--------|------|------|----------|
 | GET | `/api/teams/:teamId/topic` | 클러스터 기반 주제 목록 | Stage 4 페이지 로드 시 |
-| POST | `/api/teams/:teamId/topic/vote` | Dot voting (인당 2표) | 투표 클릭 시 |
-| GET | `/api/teams/:teamId/topic/votes` | 투표 현황 집계 | 10초 폴링 |
+| POST | `/api/teams/:teamId/topic/react` | Dot voting (`reaction: 'vote'`) | 투표 클릭 시 |
 | POST | `/api/teams/:teamId/topic/confirm` | 주제 확정 (leader only) | 확정 버튼 클릭 시 |
 
 ---
@@ -197,17 +194,10 @@ Screen 8a — System Framing (/team/[teamId]/structure)
 ### 데이터 모델 (개념)
 
 ```
-BrainstormIdea {
-  id          String
-  teamId      String
-  authorId    String
-  title       String (최대 100자)
-  description String (최대 500자)
-  parentId    String? (null = 원본, non-null = Build-on)
-  stage       Int (1 = ideation, 2 = sharing)
-  empathyCount Int (공감 수)
-  createdAt   DateTime
-}
+BrainstormSession { teamId, phase }
+BrainstormIdea { id, sessionId, userId, title, description, type }
+IdeaBuildOnEdge { parentIdeaId, childIdeaId, createdBy }
+IdeaReaction { ideaId, userId, type('like'|'comment'), content? }
 ```
 
 ---
@@ -218,20 +208,19 @@ BrainstormIdea {
 
 - 팀의 모든 아이디어 카드 (원본 + Build-on)
 - 팀 역량 요약 (teamInsight: 6축 평균, 블록 커버리지, 역할 분포)
-- 팀 설문 데이터 요약 (기술 스택 선호, 협업 스타일)
+- 팀 설문 데이터 요약 (현재 answers는 9섹션 입력이지만, 요약 시각화는 6축 + capability/collaboration/AI 레이어로 환산)
 
 ### 출력
 
 AI는 아이디어를 3~5개 주제 클러스터로 정리한다.
 
 ```
-TopicCluster {
-  clusterId   String
-  title       String        // 클러스터 주제명
-  summary     String        // 1~2문장 요약
-  keywords    String[]      // 기술 키워드 태그
-  ideaIds     String[]      // 포함된 원본 아이디어 ID 목록
-  rationale   String        // 이 클러스터가 팀에 적합한 이유
+KickoffTopic {
+  id            String
+  title         String
+  rationale     String
+  tags          String[]
+  sourceIdeaIds String[]
 }
 ```
 
@@ -239,9 +228,9 @@ TopicCluster {
 
 - KF-020 202/200 polling 패턴 준수
 - GPT-4o JSON 모드 (KF-024)
-- 응답 스키마: `BrainstormClusterSchema` (Zod, `packages/contracts/src/ai/`)
+- 응답 스키마: `TopicSuggestionsSchema` + `sourceIdeaIds` 추출
 - 파싱 실패 3회 시 job FAILED 처리
-- FAILED 시 leader에게 재생성 또는 수동 주제 입력 안내
+- FAILED 시 leader에게 재시도 또는 수동 주제 draft UI 안내
 
 ### AI 프롬프트 경계
 
@@ -255,7 +244,7 @@ TopicCluster {
 ### 규칙
 
 - 인당 2표 고정
-- 같은 클러스터에 2표 중복 투표 허용
+- 현재 repo 구현은 topic당 1표이며, 서로 다른 최대 2개 topic에 투표 가능
 - 투표 변경 가능 (기존 투표 철회 후 재투표)
 - observer는 투표 불가, 결과만 열람
 

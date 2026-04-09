@@ -1,5 +1,7 @@
 # 260409_01-team-context
 
+> 후속 검증 메모 (2026-04-09 repo audit): 최종 repo에는 `teamGoal`이 포함되지 않고, Team Context의 7번째 필드는 `domainHints`다. 또한 `/team/create` UI는 boolean 3종을 3-state가 아니라 2-state 체크박스로 수집한다.
+
 ## 작업 요약
 
 - Team 모델에 팀 단위 컨텍스트 7필드(`teamType`, `projectDuration`, `completionTarget`, `hasNonDeveloper`, `usesVibeCoding`, `hasSkillGap`, `teamGoal`)를 추가하고 `POST /api/teams` 생성 경로 전체에 연결했다.

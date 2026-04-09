@@ -50,8 +50,8 @@ Team Context는 다음 네 가지 경로에서 소비된다.
 ### 1. (즉시) GPT-4o 주제 생성 / 브레인스토밍 클러스터링 프롬프트
 
 적용 위치:
-- `apps/api/src/kickoff/kickoff.service.ts` — `GET /topic/suggestions` 핸들러 (Screen 7)
-- `apps/api/src/brainstorm/brainstorm.service.ts` — `POST /brainstorm/cluster` 핸들러 (Screen 7a Stage 3)
+- `apps/api/src/kickoff/kickoff.service.ts` — `GET /api/teams/:teamId/topic` 경로에서 사용하는 주제 생성 흐름 (Screen 7b)
+- `apps/api/src/brainstorm/brainstorm.service.ts` — `POST /api/teams/:teamId/brainstorm/advance`의 `sharing -> clustering` 전이 시 호출되는 클러스터링 흐름 (Screen 7a Stage 3)
 
 두 지점 모두 프롬프트에 XML 경계 블록을 주입한다. 순서는 다음과 같이 고정한다.
 
@@ -62,7 +62,7 @@ Team Context는 다음 네 가지 경로에서 소비된다.
   domainHints
 </team_context>
 <survey_data>
-  팀원별 SurveyResponse.answers 집계 (6섹션)
+  팀원별 SurveyResponse.answers 집계 (현재 9섹션 입력)
 </survey_data>
 <ideas>           ← brainstorm.service.ts에서만 존재
   Stage 1~2 아이디어 원문 + build-on/merge 관계
@@ -72,6 +72,8 @@ Team Context는 다음 네 가지 경로에서 소비된다.
 Team Context가 `<survey_data>` 앞에 오는 이유: 팀 단위 운영 맥락이 상위 제약으로 작용해야 개인 답변의 통계가 맥락 안에서 해석되기 때문이다. 반대 순서로 주입하면 GPT-4o가 설문 통계에 먼저 앵커링되어 팀의 선언된 방향을 후순위 필터로 취급할 수 있다.
 
 legacy 팀(Team Context 도입 이전 생성된 팀)은 `<team_context>` 블록을 아예 생략하고 과거 동작으로 fallback한다. Boolean nullable 정책이 이 fallback을 안전하게 만든다 — null과 false를 구분할 수 있기 때문에 "입력 안 함"을 "명시적 false"로 잘못 읽지 않는다.
+
+다만 현재 repo의 `/team/create` 폼은 boolean 3종을 2-state 체크박스로 수집한다. 따라서 신규 생성 팀은 기본적으로 `false`가 저장되고, `null`은 legacy 데이터 또는 비폼 입력 경로에서만 남는다. nullable 설계 자체는 유지되지만, 현재 웹 UI는 tri-state 입력을 아직 제공하지 않는다.
 
 ### 2. (즉시) Screen 6 대시보드 컨텍스트 배너
 
@@ -127,8 +129,8 @@ Team Context 도입은 다음 파일·레이어에 영향을 준다. 본 문서�
 - `apps/api/prisma/schema.prisma` — Team 모델 필드 7개 + enum 3종 추가 (tf-db)
 - `packages/contracts/src/team/team-context.ts` — Zod enum 단일 소스 (tf-db)
 - `apps/api/src/teams/teams.service.ts`, `teams.controller.ts` — `POST /teams` body 확장 (tf-backend)
-- `apps/api/src/kickoff/kickoff.service.ts` — `/kickoff/status` 응답에 `teamContext` 포함, `topic/suggestions` 프롬프트에 `<team_context>` 블록 주입 (tf-backend)
-- `apps/api/src/brainstorm/brainstorm.service.ts` — `/brainstorm/cluster` 프롬프트에 `<team_context>` 블록 주입 (tf-backend)
-- `apps/web/app/team/create/` — 6섹션 폼 UI, enum 옵션은 `packages/contracts`에서 import (tf-frontend)
+- `apps/api/src/kickoff/kickoff.service.ts` — `/kickoff/status` 응답에 `teamContext` 포함, `GET /topic` 기반 주제 생성 흐름에 `<team_context>` 블록 주입 (tf-backend)
+- `apps/api/src/brainstorm/brainstorm.service.ts` — clustering async path에 `<team_context>` 블록 주입 (tf-backend)
+- `apps/web/app/team/create/` — 6개 입력 그룹 UI, enum 옵션은 `packages/contracts`에서 import (tf-frontend)
 - `apps/web/app/team/[teamId]/dashboard/` — Team Context 배너 컴포넌트 (tf-frontend)
 - Lucide React 아이콘만 사용, 이모지 금지 — CLAUDE.md 디자인 시스템 규칙

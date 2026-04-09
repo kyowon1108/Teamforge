@@ -1,7 +1,7 @@
 # Screen 7 — Topic Decision: Pre-Implementation Design Review
 
 - Date: 2026-04-06
-- Status: design-complete (pending implementation)
+- Status: historical design review (core implementation now partially exists)
 - Covers: API structure, DB schema, phase state machine, security/permission, edge cases, frontend routing
 - Relates to: KF-018, KF-019, KF-020, KF-021, KF-022, ADR-003, ADR-004
 
@@ -11,10 +11,10 @@
 
 ### 현행 초안 vs. screen-flow.md 명세 비교
 
-screen-flow.md는 다음 3개 엔드포인트를 정의한다:
+최신 repo 기준 screen-flow.md는 다음 3개 엔드포인트를 기준으로 본다:
 
 ```
-GET  /api/teams/:teamId/topic/suggestions  — AI 주제 목록 조회 (job poll)
+GET  /api/teams/:teamId/topic              — AI 주제 목록 조회 (job poll)
 POST /api/teams/:teamId/topic/react        — 반응 저장
 POST /api/teams/:teamId/topic/confirm      — 리더 주제 확정
 ```

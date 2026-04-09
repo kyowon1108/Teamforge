@@ -1,7 +1,7 @@
 # TeamForge System Spec
 
-> Status: canonical bootstrap spec
-> Derived from: `docs/research/2026-04-06-teamforge-final-research.md` and `docs/architecture/ai-agent-design.md`
+> Status: implementation-aligned canonical spec
+> Derived from: `docs/product/screen-flow.md` and the current repository state as of 2026-04-09
 
 This file is the concise implementation-facing summary of the product. The research archive keeps the deeper narrative and rationale.
 
@@ -19,13 +19,14 @@ Help students or project teams form a team, understand member strengths, align o
 
 | Screen | Route | Name | Primary Actor | Core Output | Product Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `/` | Login | all | authenticated session | defined |
-| 2 | `/role-select` | Role Select | all | role context | defined |
-| 3 | `/team/create`, `/team/join` | Team Create / Join | leader, member, observer | team membership | defined |
-| 4 | `/team/[teamId]/survey` | Skill Assessment | leader, member | profile and skill input | defined |
-| 5 | `/team/[teamId]/result` | Personal Result | leader, member | role understanding and reaction | defined |
-| 6 | `/team/[teamId]/dashboard` | Team Dashboard | all | readiness and next actions | defined |
-| 7 | `/team/[teamId]/topic` | Topic Decision | leader, member | topic shortlist and reactions | defined |
+| 1 | `/login` | Login | all | authenticated session | implemented |
+| 2 | `/role-select` | Role Select | all | legacy compatibility redirect | deprecated |
+| 3 | `/team/create`, `/team/join` | Team Create / Join | leader, member, observer | team membership | implemented |
+| 4 | `/team/[teamId]/survey` | Skill Assessment | leader, member | profile and skill input | implemented |
+| 5 | `/team/[teamId]/result` | Personal Result | leader, member | result view, reaction, role finalization linkage | implemented |
+| 6 | `/dashboard`, `/team/[teamId]/dashboard` | Global / Team Dashboard | all | team list, readiness, next actions | implemented |
+| 7-A | `/team/[teamId]/topic/brainstorm` | Brainstorm | leader, member, observer(read) | idea divergence, clustering handoff | partial |
+| 7-B | `/team/[teamId]/topic` | Topic Decision | leader, member, observer(read) | topic shortlist, voting, leader confirm | partial |
 | 8-A | `/team/[teamId]/structure` | System Framing | leader, member | architecture block decisions | defined |
 | 8-B | `/team/[teamId]/stack` | Technical Narrowing | leader, member | stack decisions | defined |
 | 9 | `/team/[teamId]/handoff` | Handoff Layer | leader, member | collaboration artifacts | defined |
@@ -45,7 +46,13 @@ Help students or project teams form a team, understand member strengths, align o
 
 ## Current Repo Reality
 
-This repository currently contains planning and collaboration scaffolding, not working app code. Treat every screen as `not started in repo` until code lands, even if prior-project documents describe a more advanced implementation state.
+이 저장소는 더 이상 문서 스캐폴드 전용 상태가 아니다. `apps/web`와 `apps/api`에 Screen 1, 3a, 3b, 4, 5, 6과 Screen 7의 코어 흐름이 실제 코드로 존재한다. 다만 `/`는 아직 제품 진입 화면이 아니라 부트스트랩 플레이스홀더이며, 실제 인증 진입점은 `/login`이다.
+
+문서 최신화 원칙:
+
+- 구현 완료 또는 부분 구현된 화면은 repo code를 진실원천으로 삼는다.
+- 아직 라우트/컨트롤러/계약이 없는 Screen 8 이후는 product docs를 진실원천으로 유지한다.
+- 진행 일지와 ADR은 역사 기록이므로, 현재 상태와 충돌할 때는 후속 정정 메모나 신규 일지로 보정한다.
 
 ---
 
@@ -67,6 +74,7 @@ Screen 3a(`POST /api/teams`)가 기존에는 팀 이름만 받아 생성했기 �
 
 - **단일 enum 소스:** `packages/contracts/src/team/team-context.ts`에 Zod로 선언한다. 백엔드(NestJS/Prisma seed), 프론트엔드(폼 옵션), 계약(Server Actions) 모두 이 파일에서 import한다. Prisma 스키마의 enum 정의와 값이 일치하도록 단일 소스에서 재사용한다.
 - **Boolean nullable 정책:** `hasNonDeveloper`, `usesVibeCoding`, `hasSkillGap`는 `Boolean?`으로 선언하며 default 값을 두지 않는다. legacy 팀(도입 이전 생성된 팀)과 "선택 안 함"을 의미적으로 동일하게 취급하지 않기 위함이다. Dashboard 배너는 null 값을 배지에서 생략하는 방식으로 렌더링한다.
+- **현재 구현 메모:** 현재 `/team/create` 폼은 이 세 필드를 2-state 체크박스로 수집하므로, 신규 생성 팀에서는 미선택 값이 `false`로 전송된다. 즉, nullable 저장 구조는 유지되지만 기본 생성 UI는 아직 `null`과 `false`를 구분해 입력받지 않는다.
 - **입력 권한:** 팀 생성 시점에 팀장이 입력한다. 이후 수정은 향후 팀 정보 페이지에서만 허용(backlog). 팀원·옵저버는 열람만 가능하다.
 
 ### Survey와 Team Context의 의미 경계

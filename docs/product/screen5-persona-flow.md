@@ -1,17 +1,19 @@
 # Screen 5 — Personal Result: Persona-Differentiated View & Role Assignment Flow
 
-> Status: defined
+> Status: implementation-aligned
 > Created: 2026-04-07
+> Updated: 2026-04-09
 > Route: `/team/[teamId]/result`
-> Linked decisions: KF-025, KF-029 (신규 — 역할 확정 흐름)
+> Linked decisions: KF-025, KF-029
 > Feeds into: Screen 6 Team Dashboard, Screen 10 Contract Gate
 
 ---
 
 ## 1. 설계 목적
 
-현재 Screen 5는 단일 뷰로 구현되어 있다. 팀장/팀원/옵저버 간 역할 차이가 없는 상태다.
-이 문서는 다음 세 가지를 확정한다:
+현재 Screen 5는 leader/member 분기, 팀장용 팀원 결과 열람, 역할 확정 패널, 팀원용 확정 역할 배지까지 구현되어 있다. 다만 별도 LeaderNoteArea나 전용 AIPairingGuide 컴포넌트는 아직 없다.
+
+이 문서는 다음 세 가지를 정리한다:
 
 1. 페르소나(role)별로 어떤 컴포넌트가 렌더되는지
 2. 팀장이 팀원 결과를 열람하는 URL 구조와 데이터 흐름
@@ -40,15 +42,16 @@ GET /team/[teamId]/result
 /team/[teamId]/result
   [myRole = 'leader']
   ├── MyResultPanel            ✅ (레이더 차트, 강점/성장, AI 역할 제안, roleReaction)
-  ├── TeamMemberSidebar        ⬜ NEW — 팀원 목록 + 각 팀원 결과 링크
-  ├── RoleFinalizationPanel    ⬜ NEW — 역할 확정 섹션 (KF-029)
-  └── LeaderNoteArea           ⬜ NEW — 비공개 코멘트 (팀장 전용, DB 저장)
+  ├── TeamMemberSidebar        ✅ 팀원 목록 + 각 팀원 결과 링크
+  ├── MemberResultViewer       ✅ 팀원 결과 읽기 전용 상세 뷰
+  ├── RoleFinalizationPanel    ✅ 역할 확정 / 수정
+  └── LeaderNoteArea           ⬜ later — 비공개 코멘트 (미구현)
 
   [myRole = 'member']
   ├── MyResultPanel            ✅ (레이더 차트, 강점/성장, AI 역할 제안)
-  ├── RoleReactionBlock        ✅ (ok / burden / prefer_other — KF-025 완료)
-  ├── FinalizedRoleBadge       ⬜ NEW — 팀장이 역할 확정 후 표시되는 배지
-  └── AIPairingGuide           ⬜ NEW — "이 역할에서 AI를 이렇게 활용하세요" 카드
+  ├── RoleReactionBlock        ✅ (ok / burden / prefer_other)
+  ├── FinalizedRoleBadge       ✅ 팀장이 역할 확정 후 표시되는 배지
+  └── AI Support Plan Card     ✅ Section 9 기반 AI 활용 가이드
 
   [myRole = 'observer']
   └── redirect /team/[teamId]/dashboard   ✅ (현재 구현됨)
@@ -83,7 +86,7 @@ Server Component (page.tsx)
 Server Component (page.tsx)
   -> role 확인: leader가 아니면 ?view 무시하고 본인 결과 렌더
   -> getMemberResult(teamId, targetUserId)
-     API: GET /api/teams/:teamId/survey/result/:userId   ← 신규 엔드포인트 (KF-029)
+     API: GET /api/teams/:teamId/survey/result/:userId
      반환: { scores, suggestedRole, strengths, gaps, reaction, preferOtherNote }
   -> MemberResultViewer 렌더 (읽기 전용, 팀원의 roleReaction 표시)
 ```
@@ -91,7 +94,7 @@ Server Component (page.tsx)
 **TeamMemberSidebar 동작:**
 ```
 팀장이 /result 접속
-  -> GET /api/teams/:teamId/members?withSurveyStatus=true
+  -> GET /api/teams/:teamId/kickoff/members
   -> 사이드바: 팀원 목록 (이름, 제출 상태, 확정된 역할 or 미확정)
   -> 각 팀원 카드 클릭 → ?view=member&userId=[id] URL 전환 (클라이언트 사이드 router.push)
   -> 본인 카드 항상 맨 위, "내 결과" 배지 표시
@@ -101,7 +104,7 @@ Server Component (page.tsx)
 
 ## 5. 역할 확정 흐름 (Role Finalization Flow)
 
-> KF-029에서 확정 예정. 이 섹션은 설계 제안이며, 구현 전 ADR 또는 decisions.md 업데이트 필요.
+현재 repo 기준으로 역할 확정은 `TeamMembership.confirmedRole`, `confirmedAt`, `confirmedBy` 컬럼에 저장된다.
 
 ### 5-1. 전체 흐름
 
@@ -111,13 +114,13 @@ Server Component (page.tsx)
      -> 팀원 목록 + 드롭다운: 역할 선택 (FE / BE / PM / Designer / Fullstack / AI / 기타)
      -> 팀원의 roleReaction (ok / burden / prefer_other) + preferOtherNote 참고 표시
      -> "역할 확정" 버튼 (개별 팀원별)
-        -> POST /api/teams/:teamId/roles/finalize
+        -> POST /api/teams/:teamId/kickoff/roles/finalize
            Body: { userId, finalRole }
      -> 확정 후: 해당 팀원 카드에 "확정됨" 배지, 역할명 표시
 
 [팀원] /team/[teamId]/result (본인 결과 열람)
   -> FinalizedRoleBadge 컴포넌트
-     -> GET /api/teams/:teamId/roles/me
+     -> GET /api/teams/:teamId/kickoff/roles/me
         응답: { finalRole: string | null, finalizedAt: string | null }
      -> finalRole 있으면: "확정된 역할: 백엔드 개발자" 배지 표시 (green, prominent)
      -> finalRole 없으면: 배지 비표시 (roleReaction만 보임)
@@ -137,7 +140,7 @@ Server Component (page.tsx)
     finalRole: "backend" 등
     finalizedAt: timestamp
     -> FinalizedRoleBadge: 표시
-    -> AIPairingGuide: finalRole 기반 AI 활용 가이드 활성화
+    -> 기존 AI Support Plan Card와 함께 확정 역할 배지가 표시됨
 
   [역할 재확정] (팀장이 변경 시)
     finalRole: 새 값으로 덮어씀 (last-write-wins)
@@ -146,10 +149,9 @@ Server Component (page.tsx)
 
 ### 5-3. 역할 확정 실시간 반영
 
-- Socket.io 미도입 시기(ADR-004 확정 전): **폴링 방식**
-  - 팀원이 /result 페이지에 있을 때 30초 간격으로 `GET /api/teams/:teamId/roles/me` 폴링
-  - FinalizedRoleBadge가 null → 값 변경 시 토스트: "팀장이 역할을 확정했어요: OO 개발자"
-- Socket.io 도입 후(ADR-004): `role:finalized` 이벤트 → 즉시 반영
+- 현재 repo는 Socket.io + 폴링 fallback을 함께 사용한다.
+  - 기본: `role:finalized` 이벤트 수신 시 즉시 배지/토스트 갱신
+  - fallback: WebSocket 미연결 시 30초 간격으로 `GET /api/teams/:teamId/kickoff/roles/me` 폴링
 
 ---
 
@@ -159,12 +161,12 @@ Server Component (page.tsx)
 |---------|--------|--------|---------|------|
 | MyResultPanel (레이더 차트) | O | O | ✅ | SVG 6축 (KF-016) |
 | RoleReactionBlock (ok/burden/prefer_other) | O | O | ✅ | KF-025 완료 |
-| TeamMemberSidebar | O | - | ⬜ | leader only |
-| MemberResultViewer (팀원 결과 읽기) | O | - | ⬜ | ?view=member 쿼리 시 |
-| RoleFinalizationPanel | O | - | ⬜ | 역할 드롭다운 + 확정 버튼 |
+| TeamMemberSidebar | O | - | ✅ | leader only |
+| MemberResultViewer (팀원 결과 읽기) | O | - | ✅ | ?view=member 쿼리 시 |
+| RoleFinalizationPanel | O | - | ✅ | 역할 드롭다운 + 확정 버튼 |
 | LeaderNoteArea (비공개 코멘트) | O | - | ⬜ | Later (Phase 2) |
-| FinalizedRoleBadge | - | O | ⬜ | 팀장 확정 후 표시 |
-| AIPairingGuide | - | O | ⬜ | finalRole 기반 (Later) |
+| FinalizedRoleBadge | - | O | ✅ | 팀장 확정 후 표시 |
+| AI Support Plan Card | O | O | ✅ | Section 9 기반 |
 | "팀 현황 보기" CTA | O | O | ✅ | /dashboard로 이동 |
 
 ---
@@ -175,32 +177,25 @@ Server Component (page.tsx)
 
 | 메서드 | 경로 | 설명 | 상태 |
 |--------|------|------|------|
-| GET | `/api/teams/:teamId/survey/result` | 본인 설문 결과 (scores, suggestedRole) | ✅ |
-| POST | `/api/teams/:teamId/survey/reaction` | roleReaction 저장 (KF-025) | ✅ |
+| GET | `/api/teams/:teamId/survey/result/me` | 본인 설문 결과 | ✅ |
+| GET | `/api/teams/:teamId/survey/result/:userId` | 특정 팀원 결과 열람 | ✅ |
+| GET | `/api/teams/:teamId/kickoff/members` | 팀원 목록 + 제출 상태 + confirmedRole | ✅ |
+| GET | `/api/teams/:teamId/kickoff/roles/me` | 본인 확정 역할 조회 | ✅ |
+| POST | `/api/teams/:teamId/kickoff/roles/finalize` | 팀원 역할 확정 / 수정 | ✅ |
+| POST | `/api/teams/:teamId/survey/role-reaction` | roleReaction 저장 | ✅ |
 
-### 신규 필요 엔드포인트 (KF-029로 등록 예정)
-
-| 메서드 | 경로 | 설명 | 접근 권한 |
-|--------|------|------|---------|
-| GET | `/api/teams/:teamId/survey/result/:userId` | 특정 팀원 결과 열람 | leader only |
-| GET | `/api/teams/:teamId/members?withSurveyStatus=true` | 팀원 목록 + 제출 상태 + finalRole | leader only for finalRole |
-| GET | `/api/teams/:teamId/roles/me` | 본인 확정 역할 조회 | member, leader |
-| POST | `/api/teams/:teamId/roles/finalize` | 팀원 역할 확정 (덮어쓰기 가능) | leader only |
-
-### DB 스키마 변화 (KF-029 확정 후 tf-db 구현)
+### DB 반영 상태
 
 ```
-TeamMemberRole 테이블 (신규) 또는 TeamMember 테이블 컬럼 추가:
+TeamMembership 컬럼:
   userId       String
   teamId       String
-  finalRole    String?   // "frontend" | "backend" | "pm" | "designer" | "fullstack" | "ai" | "etc"
-  finalizedAt  DateTime?
-  finalizedBy  String?   // 팀장 userId
+  confirmedRole String?
+  confirmedAt   DateTime?
+  confirmedBy   String?   // 팀장 userId
 
   unique: [userId, teamId]
 ```
-
-> 주의: 기존 TeamMember / membership 테이블 구조 확인 후 tf-db가 결정. 컬럼 추가 vs 별도 테이블은 DB 설계 시 판단.
 
 ---
 
@@ -210,7 +205,7 @@ TeamMemberRole 테이블 (신규) 또는 TeamMember 테이블 컬럼 추가:
 |------|------|
 | 팀원이 ?view=member 직접 입력 | 서버 컴포넌트에서 role 확인 후 본인 결과로 silently redirect |
 | 팀장이 미제출 팀원 결과 요청 | API 404 → "아직 설문을 제출하지 않은 팀원입니다" 빈 상태 |
-| 역할 확정 API 실패 | 인라인 에러: "역할 확정에 실패했어요. 다시 시도해 주세요." |
+| 역할 확정 API 실패 | 인라인 에러: "저장에 실패했습니다. 다시 시도해 주세요." |
 | finalRole 폴링 중 네트워크 오류 | 폴링 중단, 다음 수동 새로고침 시 재시도 (silent fail) |
 | 팀원이 결과 미제출 상태에서 /result 진입 | redirect /survey + 배너 메시지 (현재 구현됨) |
 
@@ -225,11 +220,11 @@ TeamMemberRole 테이블 (신규) 또는 TeamMember 테이블 컬럼 추가:
 
 | 기능 | 우선순위 | 전제 조건 |
 |------|---------|---------|
-| TeamMemberSidebar (팀장 화면) | P1 | 신규 API: GET /members?withSurveyStatus=true |
-| MemberResultViewer (?view=member) | P1 | 신규 API: GET /result/:userId |
-| RoleFinalizationPanel | P1 | DB 스키마 확정 (KF-029), POST /roles/finalize |
-| FinalizedRoleBadge (팀원 화면) | P1 | GET /roles/me + 폴링 |
-| AIPairingGuide | P2 | finalRole 데이터 있을 때만, 카드 콘텐츠 별도 작성 필요 |
+| TeamMemberSidebar (팀장 화면) | done | 구현 완료 |
+| MemberResultViewer (?view=member) | done | 구현 완료 |
+| RoleFinalizationPanel | done | TeamMembership.confirmedRole 기반 구현 완료 |
+| FinalizedRoleBadge (팀원 화면) | done | Socket.io + polling fallback 구현 완료 |
+| LeaderNoteArea | P2 | 별도 저장 모델 필요 |
 
 ### Later — Phase 2 (활동 기록 단계)
 
@@ -251,7 +246,7 @@ TeamMemberRole 테이블 (신규) 또는 TeamMember 테이블 컬럼 추가:
 
 ## 10. 현재 screen-flow.md 와의 차이 및 보완 필요 사항
 
-현재 `screen-flow.md`의 Screen 5 Role differences 표:
+기존 `screen-flow.md`의 Screen 5 Role differences 표는 단일 뷰 기준이었고, 최신화 전까지 실제 구현을 충분히 반영하지 못했다.
 
 ```
 | | leader | member | observer |
@@ -261,7 +256,7 @@ TeamMemberRole 테이블 (신규) 또는 TeamMember 테이블 컬럼 추가:
 | CTA to dashboard | yes | yes | n/a |
 ```
 
-위 표는 단일 뷰 기준이다. 이 문서의 설계가 확정되면 screen-flow.md Screen 5 Role differences를 아래로 교체해야 한다:
+repo 최신화 이후에는 screen-flow.md도 아래 기준을 반영해야 한다:
 
 ```
 | | leader | member | observer |
@@ -278,11 +273,8 @@ TeamMemberRole 테이블 (신규) 또는 TeamMember 테이블 컬럼 추가:
 
 ---
 
-## 11. 결정 키 등록 필요 사항
+## 11. 구현 메모
 
-이 설계 문서에서 파생되는 신규 결정 키:
-
-**KF-029 (미등록 — tf-docs 또는 다음 세션에서 등록):**
-- 내용: 팀장의 팀원 결과 열람 URL 구조를 `?view=member&userId=` 쿼리 파라미터 방식으로 확정. 역할 확정(`finalRole`)은 별도 `TeamMemberRole` 테이블 또는 기존 TeamMember 테이블 컬럼 확장으로 처리. Screen 10 Contract Gate에서 finalRole 데이터를 참조.
-- 차단 조건: DB 스키마 변경이 필요하므로 tf-db 작업 선행 필요. 신규 엔드포인트 2개 (GET /result/:userId, POST /roles/finalize).
-- 연관: KF-025 (roleReaction), KF-015 (Screen 10 Contract Gate)
+- 팀장의 팀원 결과 열람 URL 구조는 `?view=member&userId=` 쿼리 파라미터 방식으로 구현됐다.
+- 역할 확정은 별도 테이블이 아니라 `TeamMembership` 컬럼 확장(`confirmedRole`, `confirmedAt`, `confirmedBy`)으로 구현됐다.
+- Screen 10 Contract Gate는 이후 이 데이터를 참조할 수 있다.
