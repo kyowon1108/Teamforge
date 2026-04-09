@@ -95,7 +95,7 @@ test.describe('Team Context (KF-036~KF-040)', () => {
     const api = await createApiClient(U.U20.id, U.U20.email);
     const payload = {
       name: 'CtxFull',
-      teamType: 'SW_MAESTRO',
+      teamType: 'BOOTCAMP',
       projectDuration: 'ONE_TO_THREE_MONTHS',
       completionTarget: 'MVP',
       hasNonDeveloper: true,
@@ -121,7 +121,7 @@ test.describe('Team Context (KF-036~KF-040)', () => {
         domainHints: string[];
       };
     };
-    expect(data.teamContext.teamType).toBe('SW_MAESTRO');
+    expect(data.teamContext.teamType).toBe('BOOTCAMP');
     expect(data.teamContext.projectDuration).toBe('ONE_TO_THREE_MONTHS');
     expect(data.teamContext.completionTarget).toBe('MVP');
     expect(data.teamContext.hasNonDeveloper).toBe(true);

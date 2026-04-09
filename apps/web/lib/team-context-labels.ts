@@ -1,7 +1,6 @@
 import {
   Zap,
   GraduationCap,
-  Trophy,
   Rocket,
   Wrench,
   Lightbulb,
@@ -41,7 +40,6 @@ export interface OptionMeta<T extends string> {
 export const TEAM_TYPE_OPTIONS: OptionMeta<TeamType>[] = [
   { value: 'HACKATHON',    label: '해커톤',          description: '단기 집중 개발 (24~72시간)',   Icon: Zap },
   { value: 'CAPSTONE',     label: '캡스톤 / 졸업',   description: '학교 팀 프로젝트',              Icon: GraduationCap },
-  { value: 'SW_MAESTRO',   label: 'SW마에스트로',    description: '심사형 장기 프로그램',          Icon: Trophy },
   { value: 'BOOTCAMP',     label: '부트캠프',        description: '교육 과정 팀 프로젝트',         Icon: Rocket },
   { value: 'SIDE_PROJECT', label: '사이드 프로젝트', description: '자유 개인/팀 프로젝트',         Icon: Wrench },
   { value: 'STARTUP',      label: '스타트업',        description: '실제 서비스 창업',              Icon: Lightbulb },
@@ -77,7 +75,6 @@ export const DOMAIN_HINT_OPTIONS: OptionMeta<DomainHint>[] = [
 export const TEAM_TYPE_SHORT: Record<TeamType, { label: string; Icon: LucideIcon }> = {
   HACKATHON:    { label: '해커톤',          Icon: Zap },
   CAPSTONE:     { label: '캡스톤',          Icon: GraduationCap },
-  SW_MAESTRO:   { label: 'SW마에스트로',    Icon: Trophy },
   BOOTCAMP:     { label: '부트캠프',        Icon: Rocket },
   SIDE_PROJECT: { label: '사이드 프로젝트', Icon: Wrench },
   STARTUP:      { label: '스타트업',        Icon: Lightbulb },

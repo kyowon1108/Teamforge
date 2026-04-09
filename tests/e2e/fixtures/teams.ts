@@ -16,7 +16,7 @@ interface TeamContextFixture {
  *
  * Team Context (KF-036~KF-040):
  *   A — HACKATHON / DEMO    (vibe coding 활용 팀)
- *   B — SW_MAESTRO / MVP    (skill gap 큰 팀)
+ *   B — BOOTCAMP / MVP      (skill gap 큰 팀)
  *   C — SIDE_PROJECT / MVP  (비개발자 포함 팀)
  *   D — STARTUP / PRODUCTION (장기 프로덕션 팀)
  *   E — 컨텍스트 없음        (legacy nullable 회귀 시뮬레이션)
@@ -47,7 +47,7 @@ export const TEAMS = {
     members: [U.U06, U.U07, U.U08],
     observers: [U.U09],
     context: {
-      teamType: 'SW_MAESTRO',
+      teamType: 'BOOTCAMP',
       projectDuration: 'ONE_TO_THREE_MONTHS',
       completionTarget: 'MVP',
       hasNonDeveloper: false,

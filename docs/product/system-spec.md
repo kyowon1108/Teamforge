@@ -55,7 +55,7 @@ Screen 3a(`POST /api/teams`)가 기존에는 팀 이름만 받아 생성했기 �
 
 | 필드 | Prisma 타입 | 값 / 제약 | 필수 | 의미 |
 |------|------------|-----------|------|------|
-| `teamType` | enum `TeamType` | `HACKATHON` / `CAPSTONE` / `SW_MAESTRO` / `BOOTCAMP` / `SIDE_PROJECT` / `STARTUP` | 필수 | 팀 운영 형태 |
+| `teamType` | enum `TeamType` | `HACKATHON` / `CAPSTONE` / `BOOTCAMP` / `SIDE_PROJECT` / `STARTUP` | 필수 | 팀 운영 형태 |
 | `projectDuration` | enum `ProjectDuration` | `UNDER_1_DAY` / `ONE_TO_FOUR_WEEKS` / `ONE_TO_THREE_MONTHS` / `OVER_THREE_MONTHS` | 필수 | 프로젝트 기간 |
 | `completionTarget` | enum `CompletionTarget` | `DEMO` / `MVP` / `PRODUCTION` | 필수 | 목표 완성도 |
 | `hasNonDeveloper` | `Boolean?` | nullable, default 없음 | 선택 | 비개발자(PM/디자이너) 팀원 포함 여부 |

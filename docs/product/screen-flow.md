@@ -214,7 +214,7 @@ Back navigation:
 
 | 필드 | 타입 | 값 | 필수 | 의미 |
 |------|------|-----|------|------|
-| `teamType` | enum | `HACKATHON` / `CAPSTONE` / `SW_MAESTRO` / `BOOTCAMP` / `SIDE_PROJECT` / `STARTUP` | 필수 | 팀이 어떤 제도·형태로 운영되는가 |
+| `teamType` | enum | `HACKATHON` / `CAPSTONE` / `BOOTCAMP` / `SIDE_PROJECT` / `STARTUP` | 필수 | 팀이 어떤 제도·형태로 운영되는가 |
 | `projectDuration` | enum | `UNDER_1_DAY` / `ONE_TO_FOUR_WEEKS` / `ONE_TO_THREE_MONTHS` / `OVER_THREE_MONTHS` | 필수 | 프로젝트 총 기간 |
 | `completionTarget` | enum | `DEMO` / `MVP` / `PRODUCTION` | 필수 | 목표하는 완성도 수준 |
 | `hasNonDeveloper` | `boolean \| null` | true / false / null | 선택 | PM·디자이너 등 비개발자 팀원 포함 여부 |

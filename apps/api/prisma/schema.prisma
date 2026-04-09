@@ -32,7 +32,6 @@ enum BrainstormPhase {
 enum TeamType {
   HACKATHON
   CAPSTONE
-  SW_MAESTRO
   BOOTCAMP
   SIDE_PROJECT
   STARTUP

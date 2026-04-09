@@ -58,6 +58,5 @@ export const TEAM_CONTEXT_SYSTEM_RULES = `
 - uses_vibe_coding이 true이면 AI 도구로 빠르게 프로토타이핑 가능한 구조의 주제를 선호하세요
 - domain_hints가 있으면 해당 도메인 내에서 주제를 제안하되, 팀 역량과 맞지 않으면 rationale에 명시하세요
 - type이 HACKATHON이면 심사 기준과 짧은 완성 주기를 고려하세요
-- type이 SW_MAESTRO이면 사회적 임팩트와 기술적 완성도의 균형을 고려하세요
 - has_skill_gap이 true이면 역할 분리가 명확한 주제를 선호하세요
 `.trim();

@@ -10,7 +10,6 @@ import { z } from 'zod';
 export const TeamTypeSchema = z.enum([
   'HACKATHON',
   'CAPSTONE',
-  'SW_MAESTRO',
   'BOOTCAMP',
   'SIDE_PROJECT',
   'STARTUP',
