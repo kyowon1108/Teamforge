@@ -5,6 +5,7 @@ import {
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import OpenAI from 'openai';
+import { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import { TeamGateway } from '../gateways/team.gateway';
 import { TopicSuggestionsSchema, type TopicSuggestion, SurveyAnswersSchema, type SurveyAnswers } from '@teamforge/contracts';
@@ -479,16 +480,33 @@ export class KickoffService implements OnApplicationBootstrap {
       where: { teamId },
     });
 
-    // job 없음 → 생성 후 백그라운드 생성 시작
+    // job 없음 → 생성 후 백그라운드 생성 시작 (Race-condition safe)
     if (!job) {
-      const newJob = await this.prisma.kickoffTopicJob.create({
-        data: { teamId, status: 'pending' },
-      });
+      try {
+        const newJob = await this.prisma.kickoffTopicJob.create({
+          data: { teamId, status: 'pending' },
+        });
 
-      // 백그라운드 실행 (await 없음)
-      void this._generateTopicsAsync(newJob.id, teamId);
+        void this._generateTopicsAsync(newJob.id, teamId);
 
-      return { httpStatus: 202 as const, status: 'pending' as const, jobId: newJob.id };
+        return { httpStatus: 202 as const, status: 'pending' as const, jobId: newJob.id };
+      } catch (error) {
+        // 동시 요청으로 Unique violation 발생 시 기존 job 조회
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          const existingJob = await this.prisma.kickoffTopicJob.findUnique({
+            where: { teamId },
+          });
+          return {
+            httpStatus: 202 as const,
+            status: (existingJob?.status ?? 'pending') as 'pending' | 'processing',
+            jobId: existingJob?.id ?? '',
+          };
+        }
+        throw error;
+      }
     }
 
     // 처리 중

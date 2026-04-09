@@ -40,13 +40,21 @@ export class TeamGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // teamId is sent by the client via join event
       client.on('join:team', async (teamId: string) => {
-        // CUID format validation
-        if (!/^[a-z0-9]{20,30}$/.test(teamId)) return;
+        // CUID/UUID format validation
+        if (!/^[a-z0-9_-]{20,36}$/i.test(teamId)) return;
         // Membership verification
         const membership = await this.prisma.teamMembership.findUnique({
           where: { teamId_userId: { teamId, userId: client.data.userId } },
         });
         if (!membership) return; // silently reject non-members
+
+        // 기존 team 룸에서 자동 leave (다중 팀 룸 구독 방지)
+        for (const room of client.rooms) {
+          if (room.startsWith('team:') && room !== `team:${teamId}`) {
+            client.leave(room);
+          }
+        }
+
         client.join(`team:${teamId}`);
       });
 

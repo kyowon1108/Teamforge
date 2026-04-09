@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -13,6 +15,7 @@ import type { ExchangeTokenPayload } from '@teamforge/contracts';
 import { TeamsService } from './teams.service';
 import { CreateTeamSchema } from './dto/create-team.dto';
 import { JoinTeamSchema } from './dto/join-team.dto';
+import { ParseTeamIdPipe } from '../common/parse-team-id.pipe';
 
 @Controller('teams')
 export class TeamsController {
@@ -75,10 +78,61 @@ export class TeamsController {
 
   /**
    * GET /api/teams/me
-   * 내 팀 정보 조회 (단일 팀 — 첫 번째 팀)
+   * 내 팀 정보 조회 (가장 최근 활동한 팀)
    */
   @Get('me')
   async getMyTeam(@CurrentUser() user: ExchangeTokenPayload) {
     return this.teamsService.getMyTeam(user.sub);
+  }
+
+  /**
+   * POST /api/teams/:teamId/regenerate-invite
+   * 초대코드 재생성 (leader only)
+   */
+  @Post(':teamId/regenerate-invite')
+  @HttpCode(HttpStatus.OK)
+  async regenerateInviteCode(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+  ) {
+    return this.teamsService.regenerateInviteCode(teamId, user.sub);
+  }
+
+  /**
+   * POST /api/teams/:teamId/transfer-leadership
+   * 리더 양도 (leader only)
+   */
+  @Post(':teamId/transfer-leadership')
+  @HttpCode(HttpStatus.OK)
+  async transferLeadership(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+    @Body() body: unknown,
+  ) {
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      typeof (body as Record<string, unknown>).targetUserId !== 'string'
+    ) {
+      throw new BadRequestException({
+        code: 'INVALID_BODY',
+        message: 'targetUserId 필드가 필요합니다',
+      });
+    }
+    const targetUserId = (body as Record<string, unknown>).targetUserId as string;
+    return this.teamsService.transferLeadership(teamId, user.sub, targetUserId);
+  }
+
+  /**
+   * POST /api/teams/:teamId/leave
+   * 팀 탈퇴
+   */
+  @Post(':teamId/leave')
+  @HttpCode(HttpStatus.OK)
+  async leaveTeam(
+    @Param('teamId', ParseTeamIdPipe) teamId: string,
+    @CurrentUser() user: ExchangeTokenPayload,
+  ) {
+    return this.teamsService.leaveTeam(teamId, user.sub);
   }
 }

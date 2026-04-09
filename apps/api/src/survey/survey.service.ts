@@ -294,7 +294,14 @@ export class SurveyService {
     reaction: string,
     note?: string,
   ): Promise<{ roleReaction: string; roleReactionNote: string | null }> {
-    await this.requireMembership(teamId, userId);
+    const membership = await this.requireMembership(teamId, userId);
+
+    if (membership.role === 'observer') {
+      throw new ForbiddenException({
+        code: 'OBSERVER_FORBIDDEN',
+        message: '옵저버는 역할 반응을 남길 수 없습니다',
+      });
+    }
 
     const existing = await this.prisma.surveyResponse.findUnique({
       where: { teamId_userId: { teamId, userId } },
